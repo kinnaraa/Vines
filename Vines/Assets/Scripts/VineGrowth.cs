@@ -5,9 +5,9 @@ using System.Collections.Generic;
 public class VineGrowth : MonoBehaviour
 {
     public LineRenderer lineRenderer;
-    public List<Vector3> vinePoints = new List<Vector3> ();
+    public List<Vector3> vinePoints = new List<Vector3>();
     public Vector3 tendril;
-    private float radius = 5.0f;
+    private float radius = 1.0f;
 
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
