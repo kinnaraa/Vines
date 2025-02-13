@@ -82,29 +82,55 @@ public class VineGrowth3 : MonoBehaviour
         Vector3 bestNormal = Vector3.zero;
         bool found = false;
 
-        // get all colliders in the search radius
-        Collider[] colliders = Physics.OverlapSphere(currentPoint.point, searchRadius);
+        // check large radius to get nearby highest point
+        Vector3 highestPoint = Vector3.zero;
+        Vector3 highestNormal = Vector3.zero;
+        float highestMaxY = float.MinValue;
 
-        // cast downward rays to find all valid surface points
-        foreach (Collider col in colliders)
+        // get sample points in radius and cast downward rays to find valid surface points
+        for (int i = 0; i < 50; i++)
         {
-            // get sample points inside the collider bounds
-            for (int i = 0; i < 5; i++)
-            {
-                Vector3 randomPoint = currentPoint.point + Random.insideUnitSphere * 0.5f;
-                randomPoint.y += 1.0f;
+            Vector3 highestRandomPoint = currentPoint.point + Random.insideUnitSphere;
+            highestRandomPoint.y += 1.0f;
 
-                RaycastHit hit;
-                if (Physics.Raycast(randomPoint, Vector3.down, out hit, 4.0f))
+            RaycastHit hit;
+            if (Physics.Raycast(highestRandomPoint, Vector3.down, out hit, 5.0f))
+            {
+                // check if this point is the highest valid point
+                if (hit.point.y > highestMaxY && !vinePoints.Any(vp => vp.point == hit.point))
                 {
-                    // check if this point is the highest valid point
-                    if (hit.point.y > maxY && !vinePoints.Any(vp => vp.point == hit.point))
-                    {
-                        maxY = hit.point.y;
-                        bestPoint = hit.point;
-                        bestNormal = hit.normal;
-                        found = true;
-                    }
+                    highestMaxY = hit.point.y;
+                    highestPoint = hit.point;
+                    highestNormal = hit.normal;
+                }
+            }
+        }
+
+        Debug.Log("highest nearby point: " + highestPoint);
+
+        // get the growth direction using this point to guide the vine towards it
+        Vector3 growthDirection = (highestPoint - currentPoint.point).normalized;
+
+        // get sample points inside the collider bounds
+        for (int i = 0; i < 50; i++)
+        {
+            Vector3 randomPoint = currentPoint.point + Random.insideUnitSphere;
+            randomPoint.y += 1.0f;
+
+            RaycastHit hit;
+            if (Physics.Raycast(randomPoint, Vector3.down, out hit, 4.0f))
+            {
+                // check if the candidate point is somewhat in the right growth direction
+                Vector3 candidateDirection = (hit.point - currentPoint.point).normalized;
+                float alignment = Vector3.Dot(candidateDirection, growthDirection);
+
+                // check if this point is the highest valid point
+                if (alignment > 0.5f && hit.point.y > maxY && !vinePoints.Any(vp => vp.point == hit.point))
+                {
+                    maxY = hit.point.y;
+                    bestPoint = hit.point;
+                    bestNormal = hit.normal;
+                    found = true;
                 }
             }
         }
