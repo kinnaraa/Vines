@@ -17,7 +17,7 @@ public class NewMethod : MonoBehaviour
         public override bool Equals(object obj)
         {
             Vertex other = (Vertex)obj;
-            if (Vector3.Distance(point, other.point) < 0.01f && Vector3.Dot(normal, other.normal) > 0.99f)
+            if (Vector3.Distance(point, other.point) < 0.001f && Vector3.Dot(normal, other.normal) > 0.999f)
             {
                 return true;
             }
@@ -37,6 +37,7 @@ public class NewMethod : MonoBehaviour
     private float highestSearchRadius = 4.0f;
 
     private bool stopVine = false;
+    private bool needsToGoDown = false;
 
     void Start()
     {
@@ -71,7 +72,7 @@ public class NewMethod : MonoBehaviour
 
         if (Physics.Raycast(startPosition + Vector3.up, Vector3.down, out hit, 10.0f))
         {
-            Debug.Log("Hit point: " + hit.point);
+            Debug.Log("hit point: " + hit.point);
             return new Vertex(hit.point, hit.normal);
         }
         Debug.Log("didn't find ground point");
@@ -125,7 +126,7 @@ public class NewMethod : MonoBehaviour
             if (currentHighestPoint != Vector3.zero)
             {
                 foundHighest = true;
-                Debug.Log("New highest point: " + currentHighestPoint);
+                Debug.Log("new highest point: " + currentHighestPoint);
             }
             else
             {
@@ -147,6 +148,13 @@ public class NewMethod : MonoBehaviour
         {
             float azimuth = (360f / numRays) * i;
             float elevation = Random.Range(0f, 360);
+
+            if (needsToGoDown)
+            {
+                elevation = Random.Range(-135f, 10f); // bias downwards movement
+                // move rayOrigin do it can detect downwards rays
+                rayOrigin -= Vector3.up * 0.1f;
+            }
 
             // create rays in a sphere basically
             Quaternion rotationAzimuth = Quaternion.AngleAxis(azimuth, currentPoint.normal);
@@ -177,14 +185,13 @@ public class NewMethod : MonoBehaviour
             }
         }
 
-        // --- 4. ADD THE BEST FOUND POINT ---
         if (bestScore != float.MinValue)
         {
             addPoint(new Vertex(bestPoint, bestNormal));
         }
         else
         {
-            Debug.Log("No valid surface found. Stopping growth.");
+            Debug.Log("no valid surface found... stopping growth");
         }
     }
 
@@ -196,6 +203,10 @@ public class NewMethod : MonoBehaviour
             Vertex currentPoint = vinePoints[vinePoints.Count - 1];
             Gizmos.color = new Color(0, 1, 0, 0.3f);
             Gizmos.DrawWireSphere(currentPoint.point, searchRadius);
+
+            Gizmos.color = new Color(1, 0, 0, 0.3f);
+            Gizmos.DrawWireSphere(currentPoint.point, highestSearchRadius);
+
         }
     }
 }
