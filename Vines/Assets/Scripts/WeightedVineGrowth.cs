@@ -2,7 +2,7 @@ using UnityEngine;
 using System.Linq;
 using System.Collections.Generic;
 
-public class VineGrowth3 : MonoBehaviour
+public class WeightedVineGrowth : MonoBehaviour
 {
     public struct Vertex
     {
@@ -21,8 +21,7 @@ public class VineGrowth3 : MonoBehaviour
     private Vector3 currentHighestPoint = Vector3.zero;
     private Vector3 currentHighestNormal = Vector3.zero;
     private bool foundHighest = false;
-    private float searchRadius = 0.5f;
-    private float highestSearchRadius = 3.0f;
+    private float searchRadius = 1.0f;
 
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
@@ -33,18 +32,16 @@ public class VineGrowth3 : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
-        if (vinePoints.Count <= 100 && vinePoints.Count > 0)
+        if (vinePoints.Count <= 15 && vinePoints.Count > 0)
         {
             Vertex currentPoint = vinePoints[vinePoints.Count - 1];
-            findNextPoint(currentPoint, highestSearchRadius);
+            findNextPoint(currentPoint, 3.0f);
         }
     }
 
     void generateVine()
     {
         lineRenderer = gameObject.AddComponent<LineRenderer>();
-        //lineRenderer.startColor = new Color(0.4f, 0.2f, 0.1f, 1);
-        //lineRenderer.endColor = Color.green;
         lineRenderer.startWidth = 0.1f;
         lineRenderer.endWidth = 0.1f;
         lineRenderer.material = new Material(Shader.Find("Sprites/Default"));
@@ -127,12 +124,13 @@ public class VineGrowth3 : MonoBehaviour
                 foundHighest = true;
             }
         }
-        
+
         // get the growth direction using this point to guide the vine towards it
         Vector3 growthDirection = (currentHighestPoint - currentPoint.point).normalized;
+        float bestScore = float.MinValue;
 
         // get sample points inside the radius
-        for (int i = 0; i < 100; i++)
+        for (int i = 0; i < 500; i++)
         {
             Vector3 randomPoint = currentPoint.point + Random.insideUnitSphere * searchRadius;
             randomPoint.y += 1.0f;
@@ -140,18 +138,20 @@ public class VineGrowth3 : MonoBehaviour
             RaycastHit hit;
             if (Physics.Raycast(randomPoint, Vector3.down, out hit, 20.0f))
             {
-                // check if the candidate point is somewhat in the right growth direction
+                // get distance from candidate point to currentHighestPoint
+                float candidateDistance = Vector3.Distance(currentHighestPoint, randomPoint);
+
+                // get alignment of candidate point direction from current point with growth direction
                 Vector3 candidateDirection = (hit.point - currentPoint.point).normalized;
                 float alignment = Vector3.Dot(candidateDirection, growthDirection);
 
-                // check if this point is the highest valid point
-                if (alignment >= 0.5f && hit.point.y >= maxY && !vinePoints.Any(vp => vp.point == hit.point))
-                {
-                    maxY = hit.point.y;
-                    bestPoint = hit.point;
-                    bestNormal = hit.normal;
-                    found = true;
-                }else if (alignment >= 0.5f && !vinePoints.Any(vp => vp.point == hit.point)) // allow movement downwards only if necessary
+                // get y value
+                float candidateY = hit.point.y;
+
+                // weighing system to rank possible next points
+                float score = (1.0f / (1.0f + candidateDistance)) + (candidateY * 5.0f) + (alignment * 3.0f);
+
+                if (score > bestScore)
                 {
                     bestPoint = hit.point;
                     bestNormal = hit.normal;
@@ -167,49 +167,12 @@ public class VineGrowth3 : MonoBehaviour
         }
         else
         {
-            // try raycasting along the current point's tangent to surface normal
-            Vector3 tangent = (growthDirection - Vector3.Dot(growthDirection, currentPoint.normal) * currentPoint.normal).normalized;
-
-            Debug.DrawRay(currentPoint.point, currentPoint.normal * 2f, Color.green, 1.0f);  // normal
-            Debug.DrawRay(currentPoint.point, tangent * 2f, Color.blue, 1.0f); // tangent
-            Debug.DrawRay(currentPoint.point, growthDirection, Color.yellow, 1.0f); // growth direction
-
-            RaycastHit hit;
-
-            if (Physics.Raycast(currentPoint.point, tangent, out hit, 1.0f))
-            {
-                addPoint(new Vertex(hit.point, hit.normal));
-            }
-
-
             // raycast in growth direction from currentPoint.point
-            /*
             RaycastHit hit;
             if (Physics.Raycast(currentPoint.point, growthDirection, out hit, 5.0f))
             {
-                currentHighestPoint = hit.point;
-                currentHighestNormal = hit.normal;
-                Debug.Log("highest nearby point: " + currentHighestPoint);
-                foundHighest = true;
                 addPoint(new Vertex(hit.point, hit.normal));
             }
-            */
         }
     }
-
-    void OnDrawGizmos()
-    {
-        if (vinePoints.Count > 0)
-        {
-            Vertex currentPoint = vinePoints[vinePoints.Count - 1];
-
-            Gizmos.color = new Color(0, 1, 0, 0.3f);
-
-            Gizmos.DrawWireSphere(currentPoint.point, searchRadius);
-
-            Gizmos.color = new Color(1, 0, 0, 0.3f);
-            Gizmos.DrawWireSphere(currentPoint.point, highestSearchRadius);
-        }
-    }
-
 }

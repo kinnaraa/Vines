@@ -2,7 +2,7 @@ using UnityEngine;
 using System.Linq;
 using System.Collections.Generic;
 
-public class VineGrowth3 : MonoBehaviour
+public class VineGrowth4 : MonoBehaviour
 {
     public struct Vertex
     {
@@ -21,7 +21,7 @@ public class VineGrowth3 : MonoBehaviour
     private Vector3 currentHighestPoint = Vector3.zero;
     private Vector3 currentHighestNormal = Vector3.zero;
     private bool foundHighest = false;
-    private float searchRadius = 0.5f;
+    private float searchRadius = 0.75f;
     private float highestSearchRadius = 3.0f;
 
     // Start is called once before the first execution of Update after the MonoBehaviour is created
@@ -89,8 +89,10 @@ public class VineGrowth3 : MonoBehaviour
 
         bool found = false;
 
+        float bestScore = float.MinValue;
+
         // if the current point is close enough to the highest point, find a new highest point to guide the vine
-        if (foundHighest == true && (currentPoint.point.y - currentHighestPoint.y >= 0.0f || currentPoint.point.y - currentHighestPoint.y >= -0.1f))
+        if (foundHighest == true && (currentPoint.point.y - currentHighestPoint.y >= 0.0f || currentPoint.point.y - currentHighestPoint.y >= -0.05f))
         {
             // search for new highest point again
             Debug.Log("search for another highest point...");
@@ -127,41 +129,50 @@ public class VineGrowth3 : MonoBehaviour
                 foundHighest = true;
             }
         }
-        
+
         // get the growth direction using this point to guide the vine towards it
         Vector3 growthDirection = (currentHighestPoint - currentPoint.point).normalized;
 
+        // check for vertical wall close in front, if so, attach
+        RaycastHit hitVert;
+
+        if (vinePoints.Count >= 2)
+        {
+            Vector3 currentDir = (currentPoint.point - vinePoints[vinePoints.Count - 2].point).normalized;
+
+            if (Physics.Raycast(currentPoint.point, currentDir, out hitVert, 1.0f))
+            {
+                addPoint(new Vertex(hitVert.point, hitVert.normal));
+                Debug.Log("found vertical wall to attach to");
+                return;
+            }
+        }
+
         // get sample points inside the radius
-        for (int i = 0; i < 100; i++)
+        for (int i = 0; i < 500; i++)
         {
             Vector3 randomPoint = currentPoint.point + Random.insideUnitSphere * searchRadius;
-            randomPoint.y += 1.0f;
+            randomPoint.y += 0.05f;
 
             RaycastHit hit;
-            if (Physics.Raycast(randomPoint, Vector3.down, out hit, 20.0f))
+            if (Physics.Raycast(randomPoint, Vector3.down, out hit, float.MaxValue))
             {
                 // check if the candidate point is somewhat in the right growth direction
                 Vector3 candidateDirection = (hit.point - currentPoint.point).normalized;
                 float alignment = Vector3.Dot(candidateDirection, growthDirection);
 
-                // check if this point is the highest valid point
-                if (alignment >= 0.5f && hit.point.y >= maxY && !vinePoints.Any(vp => vp.point == hit.point))
+                if (alignment > bestScore)
                 {
-                    maxY = hit.point.y;
+                    bestScore = alignment;
                     bestPoint = hit.point;
                     bestNormal = hit.normal;
-                    found = true;
-                }else if (alignment >= 0.5f && !vinePoints.Any(vp => vp.point == hit.point)) // allow movement downwards only if necessary
-                {
-                    bestPoint = hit.point;
-                    bestNormal = hit.normal;
-                    found = true;
                 }
+                
             }
         }
 
-        // if a valid surface point is found, add it
-        if (found)
+        // if a valid new point is found, add it
+        if (bestScore != float.MinValue)
         {
             addPoint(new Vertex(bestPoint, bestNormal));
         }
@@ -170,9 +181,7 @@ public class VineGrowth3 : MonoBehaviour
             // try raycasting along the current point's tangent to surface normal
             Vector3 tangent = (growthDirection - Vector3.Dot(growthDirection, currentPoint.normal) * currentPoint.normal).normalized;
 
-            Debug.DrawRay(currentPoint.point, currentPoint.normal * 2f, Color.green, 1.0f);  // normal
             Debug.DrawRay(currentPoint.point, tangent * 2f, Color.blue, 1.0f); // tangent
-            Debug.DrawRay(currentPoint.point, growthDirection, Color.yellow, 1.0f); // growth direction
 
             RaycastHit hit;
 
@@ -195,6 +204,9 @@ public class VineGrowth3 : MonoBehaviour
             }
             */
         }
+
+        Debug.DrawRay(currentPoint.point, currentPoint.normal * 2f, Color.green, 1.0f);  // normal
+        Debug.DrawRay(currentPoint.point, growthDirection, Color.yellow, 1.0f); // growth direction
     }
 
     void OnDrawGizmos()
