@@ -32,8 +32,8 @@ public class CombinedVine : MonoBehaviour
 
     [Header("Mesh Tube Settings")]
     public int circleDivisions = 12;  // Number of vertices in each ring
-    public float startRadius = 0.1f;    // Radius at the beginning of the vine
-    public float endRadius = 0.01f;     // Radius at the end (tapering)
+    public float startRadius = 0.075f;    // Radius at the beginning of the vine
+    public float endRadius = 0.0075f;     // Radius at the end (tapering)
 
     MeshFilter mf;
     MeshRenderer mr;
@@ -211,9 +211,9 @@ public class CombinedVine : MonoBehaviour
             float t = (float)i / (vinePoints.Count - 1);
             float radius = Mathf.Lerp(startRadius, endRadius, t);
 
-            // Convert the vine point from world to local:
-            Vector3 centerWorld = vinePoints[i].point;
+            Vector3 centerWorld = vinePoints[i].point + vinePoints[i].normal * radius;
             Vector3 centerLocal = transform.InverseTransformPoint(centerWorld);
+
 
             // Compute tangent in local space
             Vector3 tangentLocal;
@@ -280,7 +280,6 @@ public class CombinedVine : MonoBehaviour
         mf.mesh = mesh;
     }
 
-    // Generates leaves on all vine points once growth is finished.
     void GenerateLeaves()
     {
         // Optional: Clear existing leaves.
@@ -301,63 +300,35 @@ public class CombinedVine : MonoBehaviour
         }
     }
 
-    // Spawns a leaf at the specified vine point index with a bias toward the vine point's normal.
     void SpawnLeafAtPoint(int i)
     {
         Vector3 centerWorld = vinePoints[i].point;
+        Vector3 surfaceNormal = vinePoints[i].normal;
 
-        // Compute the tangent (vine growth direction) at this point.
-        Vector3 tangentWorld;
-        if (i < vinePoints.Count - 1)
-            tangentWorld = (vinePoints[i + 1].point - centerWorld).normalized;
-        else if (i > 0)
-            tangentWorld = (centerWorld - vinePoints[i - 1].point).normalized;
-        else
-            tangentWorld = Vector3.forward; // Fallback
+        float deviationAngle = 5f;
+        Vector3 randomAxis = Vector3.Cross(surfaceNormal, Random.onUnitSphere);
+        if (randomAxis.sqrMagnitude < 0.001f)
+            randomAxis = Vector3.right;
+        randomAxis.Normalize();
+        Quaternion deviationRotation = Quaternion.AngleAxis(Random.Range(-deviationAngle, deviationAngle), randomAxis);
+        Vector3 adjustedUp = deviationRotation * surfaceNormal;
 
-        // Compute an outward direction using the vine's tangent.
-        Vector3 outward = Vector3.Cross(tangentWorld, Vector3.up);
-        if (outward.sqrMagnitude < 0.001f)
-        {
-            outward = Vector3.Cross(tangentWorld, Vector3.right);
-        }
-        outward.Normalize();
+        Vector3 randomForwardCandidate = Random.onUnitSphere;
+        Vector3 leafForward = Vector3.ProjectOnPlane(randomForwardCandidate, adjustedUp).normalized;
+        if (leafForward == Vector3.zero)
+            leafForward = Vector3.forward;
 
-        // Get a forward candidate by projecting outward onto the horizontal plane.
-        Vector3 forwardCandidate = Vector3.ProjectOnPlane(outward, Vector3.up).normalized;
-        if (forwardCandidate == Vector3.zero)
-        {
-            forwardCandidate = Vector3.forward;
-        }
+        Quaternion leafRotation = Quaternion.LookRotation(leafForward, adjustedUp);
 
-        // Blend the computed forward with the vine point's normal so the leaf sticks out more.
-        // Increase biasStrength for a stronger pull toward the normal.
-        float biasStrength = 0.3f;
-        forwardCandidate = Vector3.Lerp(forwardCandidate, vinePoints[i].normal, biasStrength).normalized;
-
-        // Build the base rotation with an up vector fixed as world up.
-        Quaternion baseRot = Quaternion.LookRotation(forwardCandidate, Vector3.up);
-
-        // Apply a slight random yaw variation (±10°) for natural variation.
-        float randomYaw = Random.Range(-10f, 10f);
-        Quaternion randomRotation = Quaternion.Euler(0, randomYaw, 0);
-        Quaternion finalRotationWorld = baseRot * randomRotation;
-
-        // Convert the final rotation to local space.
         Vector3 centerLocal = transform.InverseTransformPoint(centerWorld);
-        Vector3 forwardLocal = transform.InverseTransformDirection(finalRotationWorld * Vector3.forward);
-        Vector3 upLocal = transform.InverseTransformDirection(finalRotationWorld * Vector3.up);
-        Quaternion finalRotationLocal = Quaternion.LookRotation(forwardLocal, upLocal);
-
-        // Instantiate the leaf.
         GameObject leaf = Instantiate(leafPrefab, transform);
         leaf.transform.localPosition = centerLocal;
-        leaf.transform.localRotation = finalRotationLocal;
-        leaf.tag = "Leaf";  // For potential cleanup
+        leaf.transform.localRotation = leafRotation;
 
-        // Slightly randomize scale.
-        float baseScale = 0.0025f;
+        float baseScale = 0.006f;
         float randomScale = Random.Range(0.8f, 1.2f);
         leaf.transform.localScale = Vector3.one * (baseScale * randomScale);
     }
+
+
 }
