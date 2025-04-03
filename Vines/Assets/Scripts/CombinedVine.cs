@@ -78,6 +78,9 @@ public class CombinedVine : MonoBehaviour
         {
             if (generateLeaves)
             {
+                
+                SmoothVine();
+                GenerateMesh();
                 GenerateLeaves();
                 generateLeaves = false;
             }
@@ -101,6 +104,7 @@ public class CombinedVine : MonoBehaviour
             return;
         }
         vinePoints.Add(newPoint);
+        Debug.Log("added point: " +  newPoint.point);
     }
 
     List<Vector3> GetNearbyMeshPoints(Vector3 currentPoint, float radius)
@@ -135,14 +139,27 @@ public class CombinedVine : MonoBehaviour
     {
         Vector3 prevPos = currentPoint.point;
 
-        // Get the nearby mesh points around the current vine point
-        List<Vector3> nearbyPoints = GetNearbyMeshPoints(prevPos, searchRadius);
+        // Get the nearby mesh points around the current vine point and remove duplicates
+        List<Vector3> nearbyPoints = GetNearbyMeshPoints(prevPos, searchRadius).Distinct().ToList();
+
+        string nearbyPointsList = "Nearby Points: ";
+        foreach (Vector3 point in nearbyPoints)
+        {
+            nearbyPointsList += point.ToString() + ", "; // Append each point to the string
+        }
+
+        // Remove the last comma and space if there are points listed
+        if (nearbyPointsList.Length > 0)
+            nearbyPointsList = nearbyPointsList.Substring(0, nearbyPointsList.Length - 2);
+
+        Debug.Log(nearbyPointsList);
 
         float bestScore = float.MinValue;
         Vector3 bestPoint = prevPos;
 
         // Light position to calculate sun alignment (using the direction to the light)
         Vector3 lightPosition = lightTransform.position;
+        Vector3 toLight = (lightPosition - prevPos).normalized; // Direction from vine point to light source
 
         // Flag to determine if the vine should go down
         bool shouldMoveDown = true;
@@ -179,30 +196,32 @@ public class CombinedVine : MonoBehaviour
                 verticalMovement = Mathf.Clamp(verticalMovement * 0.5f, -1f, 0f);
             }
 
-            // Calculate the direction towards the light and candidate direction
-            Vector3 toLight = (lightPosition - prevPos).normalized;
-            Vector3 candidateDir = (candidate - prevPos).normalized;
+            // Lambert's Cosine Law: Compute the dot product of the surface normal and the light direction
+            Vector3 surfaceNormal = vinePoints.FirstOrDefault(vp => vp.point == prevPos).normal;
+            float sunFactor = Mathf.Clamp01(Vector3.Dot(surfaceNormal, toLight));
 
-            // Getting weight for candidate's orientation towards the sun
-            float sunFactor = Mathf.Clamp01(Vector3.Dot(candidateDir, toLight));
+            // If the sun factor is very low, we can reduce its impact by scaling it up slightly
+            if (sunFactor < 0.2f)  // If the sun factor is very low, increase its weight
+            {
+                sunFactor = Mathf.Clamp01(sunFactor * 2f);  // Increase the sun factor's impact on the score
+            }
 
-            // Penalize downward movement, but allow it to some degree
             float heightFactor;
-            if (verticalMovement < 0)  // If going downward
+            if (verticalMovement < 0)
             {
-                // Check if downward movement is necessary
-                heightFactor = Mathf.Clamp01(verticalMovement * 0.1f); // Smaller penalty for going down
+                heightFactor = Mathf.Clamp01(verticalMovement * 0.1f);
             }
-            else  // If going upwards
+            else
             {
-                // Prioritize upward movement more
-                heightFactor = Mathf.Clamp01(verticalMovement * 2f);  // Larger reward for going up
+                heightFactor = Mathf.Clamp01(verticalMovement * 2f);
             }
+
+            Debug.Log("Sun Factor: " + sunFactor);
+            Debug.Log("Height Factor: " + heightFactor);
 
             // Compute a score based on sun alignment and vertical movement
-            float score = (sunFactor * 0.5f) + (heightFactor * 2.0f);
+            float score = (sunFactor * 2.0f) + (heightFactor * 2.0f);
 
-            // Choose the best candidate with the highest score
             if (score > bestScore)
             {
                 bestScore = score;
@@ -210,23 +229,58 @@ public class CombinedVine : MonoBehaviour
             }
         }
 
-        // If a valid candidate was found, add it to the vine
         if (bestScore != float.MinValue)
         {
-            // Add a new point only if it's sufficiently different from the last one
             if (Vector3.Distance(bestPoint, vinePoints.Last().point) > 0.001f)
             {
-                AddPoint(new Vertex(bestPoint, Vector3.up)); // Add the best point to the vine
+                AddPoint(new Vertex(bestPoint, Vector3.up));
             }
             else
             {
-                stopVine = true; // Stop vine growth if no valid new points
+                stopVine = true;
             }
         }
         else
         {
-            stopVine = true; // Stop vine growth if no valid point is found
+            stopVine = true;
         }
+    }
+
+    void SmoothVine()
+    {
+        // Create a new list for the smoothed points
+        List<Vector3> smoothedPoints = new List<Vector3>();
+
+        // Loop through the vine points and generate intermediate points using Catmull-Rom spline
+        for (int i = 1; i < vinePoints.Count - 2; i++)  // Start from second point and stop before the last two points
+        {
+            Vector3 p0 = vinePoints[i - 1].point;  // Previous point
+            Vector3 p1 = vinePoints[i].point;      // Current point
+            Vector3 p2 = vinePoints[i + 1].point;  // Next point
+            Vector3 p3 = vinePoints[i + 2].point;  // Next next point
+
+            // Interpolate between p1 and p2 using the Catmull-Rom spline
+            for (float t = 0; t <= 1; t += 0.1f)  // Increase the step for smoother or rougher interpolation
+            {
+                Vector3 smoothedPoint = CatmullRom(p0, p1, p2, p3, t);
+                smoothedPoints.Add(smoothedPoint);
+            }
+        }
+
+        // Now replace the old vine points with the smoothed ones
+        vinePoints.Clear();
+        for (int i = 0; i < smoothedPoints.Count; i++)
+        {
+            AddPoint(new Vertex(smoothedPoints[i], Vector3.up));  // You can adjust the normal vector if needed
+        }
+
+        Debug.Log("Smoothing Complete");
+    }
+
+    Vector3 CatmullRom(Vector3 p0, Vector3 p1, Vector3 p2, Vector3 p3, float t)
+    {
+        // Catmull-Rom spline interpolation formula
+        return 0.5f * ((2f * p1) + (-p0 + p2) * t + (2f * p0 - 5f * p1 + 4f * p2 - p3) * t * t + (-p0 + 3f * p1 - 3f * p2 + p3) * t * t * t);
     }
 
 
@@ -341,15 +395,12 @@ public class CombinedVine : MonoBehaviour
         Vector3 centerWorld = vinePoints[i].point;
         Vector3 surfaceNormal = vinePoints[i].normal;
 
-        // Use the vine's radius (calculated based on position in the vine) to offset leaf position
         float radius = Mathf.Lerp(startRadius, endRadius, (float)i / (vinePoints.Count - 1));
-        Vector3 leafOffset = surfaceNormal * radius;  // Offset the leaf along the surface normal
+        Vector3 leafOffset = surfaceNormal * radius;
 
-        // Add random deviation to make leaf position more natural
-        Vector3 randomDeviation = Random.insideUnitSphere * 0.02f;  // Slight random offset for variation
+        Vector3 randomDeviation = Random.insideUnitSphere * 0.02f;
         Vector3 leafPosition = centerWorld + leafOffset + randomDeviation;
 
-        // Generate leaf rotation based on surface normal
         float deviationAngle = 5f;
         Vector3 randomAxis = Vector3.Cross(surfaceNormal, Random.onUnitSphere);
         if (randomAxis.sqrMagnitude < 0.001f)
@@ -365,15 +416,13 @@ public class CombinedVine : MonoBehaviour
 
         Quaternion leafRotation = Quaternion.LookRotation(leafForward, adjustedUp);
 
-        // Convert to local space and instantiate the leaf
         Vector3 centerLocal = transform.InverseTransformPoint(leafPosition);
         GameObject leaf = Instantiate(leafPrefab, transform);
         leaf.transform.localPosition = centerLocal;
         leaf.transform.localRotation = leafRotation;
 
-        // Apply random scale for variety
-        float baseScale = 0.0025f;
-        float randomScale = Random.Range(0.8f, 1.2f);
+        float baseScale = 0.005f;
+        float randomScale = Random.Range(0.6f, 1.4f);
         leaf.transform.localScale = Vector3.one * (baseScale * randomScale);
     }
 
