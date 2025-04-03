@@ -1,12 +1,10 @@
 using UnityEngine;
-using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 
 [RequireComponent(typeof(MeshFilter), typeof(MeshRenderer))]
 public class CombinedVine : MonoBehaviour
 {
-    // Struct to store a vine point (position + surface normal)
     public struct Vertex
     {
         public Vector3 point;
@@ -17,44 +15,41 @@ public class CombinedVine : MonoBehaviour
             this.normal = normal;
         }
     }
+    [Header("Leaf stuff")]
+    public float leafProbability = 0.5f;
+    public GameObject leafPrefab;
+    public bool generateLeaves = true;
 
-    // List of vine points (centerline of the vine)
+    [Header("Stuff")]
     public List<Vertex> vinePoints = new List<Vertex>();
+    public GameObject environmentMesh;
+    public MeshFilter environmentMeshFilter;
 
-    [Header("Vine Growth Settings")]
-    public float searchRadius = 0.5f;
-    public int numRays = 100;
-    public float highestSearchRadius = 4.0f;
-    private Vector3 currentHighestPoint = Vector3.zero;
-    private bool foundHighest = false;
-    private bool stopVine = false;
-    private bool needsToGoDown = false;
+    [Header("Vine growth stuff")]
+    public float searchRadius = 1.0f;
+    public bool stopVine = false;
 
-    [Header("Mesh Tube Settings")]
-    public int circleDivisions = 12;  // Number of vertices in each ring
-    public float startRadius = 0.075f;    // Radius at the beginning of the vine
-    public float endRadius = 0.0075f;     // Radius at the end (tapering)
+    [Header("Mesh tube stuff")]
+    public int circleDivisions = 24;
+    public float startRadius = 0.06f;
+    public float endRadius = 0.005f;
+    public float uvTileFactor = 10.0f;
+    public Texture2D vineTexture;
 
     MeshFilter mf;
     MeshRenderer mr;
 
-    [Header("Leaf Settings")]
-    public GameObject leafPrefab;
-    public float leafProbability = 0.5f;
-    // When growth is done, leaves are generated all at once.
-    public bool generateLeaves = true;
-
-    public Texture2D vineTexture;
+    [Header("Light stuff")]
+    public Transform lightTransform;
 
     void Start()
     {
         mf = GetComponent<MeshFilter>();
         mr = GetComponent<MeshRenderer>();
+        environmentMeshFilter = environmentMesh.GetComponent<MeshFilter>();
 
-        // Set a default material if none is assigned.
         if (mr.sharedMaterial == null)
         {
-            // Use a shader that supports textures, for example Unlit/Texture
             Material mat = new Material(Shader.Find("Unlit/Texture"));
             if (vineTexture != null)
             {
@@ -62,29 +57,25 @@ public class CombinedVine : MonoBehaviour
             }
             else
             {
-                // Fallback to a darker brown if no texture is assigned.
                 mat.color = new Color(0.3f, 0.15f, 0.05f);
             }
             mr.material = mat;
         }
 
-        // Initialize the vine by getting a starting ground point.
         AddPoint(GetGround(transform.position));
         GenerateMesh();
     }
 
     void Update()
     {
-        // Continue growing the vine if it hasn't stopped.
         if (!stopVine && vinePoints.Count < 100)
         {
             Vertex currentPoint = vinePoints.Last();
             FindNextPoint(currentPoint);
-            GenerateMesh(); // update the mesh each time new points are added
+            GenerateMesh();
         }
         else
         {
-            // When vine growth is finished, generate leaves (once)
             if (generateLeaves)
             {
                 GenerateLeaves();
@@ -93,7 +84,6 @@ public class CombinedVine : MonoBehaviour
         }
     }
 
-    // Uses a raycast to get the ground position at a starting point.
     Vertex GetGround(Vector3 startPosition)
     {
         RaycastHit hit;
@@ -104,7 +94,6 @@ public class CombinedVine : MonoBehaviour
         return new Vertex(startPosition, Vector3.up);
     }
 
-    // Adds a new vine point if it isn’t already in the list.
     void AddPoint(Vertex newPoint)
     {
         if (vinePoints.Any(vp => Vector3.Distance(vp.point, newPoint.point) < 0.001f))
@@ -114,89 +103,133 @@ public class CombinedVine : MonoBehaviour
         vinePoints.Add(newPoint);
     }
 
-    // Searches for the next valid vine point using raycasts.
-    void FindNextPoint(Vertex currentPoint)
+    List<Vector3> GetNearbyMeshPoints(Vector3 currentPoint, float radius)
     {
-        if (foundHighest && (currentPoint.point.y - currentHighestPoint.y >= 0.0f ||
-            currentPoint.point.y - currentHighestPoint.y >= -0.05f))
+        List<Vector3> nearbyPoints = new List<Vector3>();
+
+        Vector3[] vertices = environmentMeshFilter.mesh.vertices;
+
+        if (environmentMesh != null && environmentMeshFilter.mesh != null)
         {
-            highestSearchRadius *= 1.5f;
-            foundHighest = false;
-        }
-
-        if (!foundHighest)
-        {
-            float highestMaxY = currentHighestPoint.y;
-            for (int i = 0; i < 500; i++)
-            {
-                Vector3 samplePoint = currentPoint.point + Random.insideUnitSphere * highestSearchRadius;
-                samplePoint.y += 1.0f;
-                RaycastHit hit;
-                if (Physics.Raycast(samplePoint, Vector3.down, out hit, 20.0f))
-                {
-                    if (hit.point.y >= highestMaxY &&
-                        !vinePoints.Any(vp => Vector3.Distance(vp.point, hit.point) < 0.001f))
-                    {
-                        highestMaxY = hit.point.y;
-                        currentHighestPoint = hit.point;
-                    }
-                }
-            }
-            if (currentHighestPoint != Vector3.zero)
-            {
-                foundHighest = true;
-            }
-            else
-            {
-                stopVine = true;
-            }
-        }
-
-        Vector3 bestPoint = Vector3.zero;
-        Vector3 bestNormal = Vector3.zero;
-        float bestScore = float.MinValue;
-        Vector3 growthDirection = (currentHighestPoint - currentPoint.point).normalized;
-        Vector3 rayOrigin = currentPoint.point + currentPoint.normal * 0.05f;
-
-        for (int i = 0; i < numRays; i++)
-        {
-            float azimuth = (360f / numRays) * i;
-            float elevation = Random.Range(0f, 360f);
-            if (needsToGoDown)
-            {
-                elevation = Random.Range(-135f, 10f);
-                rayOrigin -= Vector3.up * 0.1f;
-            }
-
-            Quaternion rotationAzimuth = Quaternion.AngleAxis(azimuth, currentPoint.normal);
-            Quaternion rotationElevation = Quaternion.AngleAxis(elevation, Vector3.Cross(currentPoint.normal, growthDirection));
-            Vector3 direction = rotationAzimuth * rotationElevation * growthDirection;
-            direction.Normalize();
-
-            RaycastHit hit;
-            if (Physics.Raycast(rayOrigin, direction, out hit, searchRadius))
-            {
-                float alignment = Vector3.Dot(direction, growthDirection);
-                float score = alignment;
-                if (score > bestScore)
-                {
-                    bestScore = score;
-                    bestPoint = hit.point;
-                    bestNormal = hit.normal;
-                }
-            }
-        }
-        if (bestScore != float.MinValue)
-        {
-            AddPoint(new Vertex(bestPoint, bestNormal));
+            vertices = environmentMeshFilter.mesh.vertices;
         }
         else
         {
-            stopVine = true;
+            Debug.LogWarning("Mesh is not assigned or mesh is empty.");
+        }
+
+        foreach (Vector3 vertex in vertices)
+        {
+            Vector3 worldVertex = environmentMesh.transform.TransformPoint(vertex);
+
+            if (Vector3.Distance(worldVertex, currentPoint) <= radius)
+            {
+                nearbyPoints.Add(worldVertex);
+            }
+        }
+
+        return nearbyPoints;
+    }
+
+    void FindNextPoint(Vertex currentPoint)
+    {
+        Vector3 prevPos = currentPoint.point;
+
+        // Get the nearby mesh points around the current vine point
+        List<Vector3> nearbyPoints = GetNearbyMeshPoints(prevPos, searchRadius);
+
+        float bestScore = float.MinValue;
+        Vector3 bestPoint = prevPos;
+
+        // Light position to calculate sun alignment (using the direction to the light)
+        Vector3 lightPosition = lightTransform.position;
+
+        // Flag to determine if the vine should go down
+        bool shouldMoveDown = true;
+
+        // Check if there are any candidates that are equal or higher than the current position
+        foreach (Vector3 candidate in nearbyPoints)
+        {
+            if (candidate == prevPos || Vector3.Distance(prevPos, candidate) < 0.001f)
+                continue;  // Skip if the candidate is the same as the previous point
+
+            // Compute vertical movement (Y difference)
+            float verticalMovement = candidate.y - prevPos.y;
+
+            // If any candidate point is higher or equal, set shouldMoveDown to false
+            if (verticalMovement >= 0)
+            {
+                shouldMoveDown = false; // There's no need to go down if there are candidates higher or at the same height
+            }
+        }
+
+        // Iterate over nearby points to choose the best one based on scoring
+        foreach (Vector3 candidate in nearbyPoints)
+        {
+            if (candidate == prevPos || Vector3.Distance(prevPos, candidate) < 0.001f)
+                continue;  // Skip if the candidate is the same as the previous point
+
+            // Compute vertical movement (Y difference)
+            float verticalMovement = candidate.y - prevPos.y;
+
+            // Check if we should allow downward movement or only upwards
+            if (shouldMoveDown && verticalMovement >= 0) // Allow downward movement only if no higher candidates
+            {
+                // If we're allowing downward movement, apply a smaller penalty
+                verticalMovement = Mathf.Clamp(verticalMovement * 0.5f, -1f, 0f);
+            }
+
+            // Calculate the direction towards the light and candidate direction
+            Vector3 toLight = (lightPosition - prevPos).normalized;
+            Vector3 candidateDir = (candidate - prevPos).normalized;
+
+            // Getting weight for candidate's orientation towards the sun
+            float sunFactor = Mathf.Clamp01(Vector3.Dot(candidateDir, toLight));
+
+            // Penalize downward movement, but allow it to some degree
+            float heightFactor;
+            if (verticalMovement < 0)  // If going downward
+            {
+                // Check if downward movement is necessary
+                heightFactor = Mathf.Clamp01(verticalMovement * 0.1f); // Smaller penalty for going down
+            }
+            else  // If going upwards
+            {
+                // Prioritize upward movement more
+                heightFactor = Mathf.Clamp01(verticalMovement * 2f);  // Larger reward for going up
+            }
+
+            // Compute a score based on sun alignment and vertical movement
+            float score = (sunFactor * 0.5f) + (heightFactor * 2.0f);
+
+            // Choose the best candidate with the highest score
+            if (score > bestScore)
+            {
+                bestScore = score;
+                bestPoint = candidate;
+            }
+        }
+
+        // If a valid candidate was found, add it to the vine
+        if (bestScore != float.MinValue)
+        {
+            // Add a new point only if it's sufficiently different from the last one
+            if (Vector3.Distance(bestPoint, vinePoints.Last().point) > 0.001f)
+            {
+                AddPoint(new Vertex(bestPoint, Vector3.up)); // Add the best point to the vine
+            }
+            else
+            {
+                stopVine = true; // Stop vine growth if no valid new points
+            }
+        }
+        else
+        {
+            stopVine = true; // Stop vine growth if no valid point is found
         }
     }
 
-    // Generates a tube mesh along the vinePoints.
+
     void GenerateMesh()
     {
         if (vinePoints.Count < 2)
@@ -206,16 +239,19 @@ public class CombinedVine : MonoBehaviour
         List<int> triangles = new List<int>();
         List<Vector2> uvs = new List<Vector2>();
 
+        // We'll store the previous ring rotation to interpolate smoothly
+        Quaternion lastRingRotation = Quaternion.identity;
+
         for (int i = 0; i < vinePoints.Count; i++)
         {
             float t = (float)i / (vinePoints.Count - 1);
             float radius = Mathf.Lerp(startRadius, endRadius, t);
 
+            // Offset the center along the vine's normal to help prevent clipping.
             Vector3 centerWorld = vinePoints[i].point + vinePoints[i].normal * radius;
             Vector3 centerLocal = transform.InverseTransformPoint(centerWorld);
 
-
-            // Compute tangent in local space
+            // Compute the tangent using adjacent vine points.
             Vector3 tangentLocal;
             if (i < vinePoints.Count - 1)
             {
@@ -230,21 +266,28 @@ public class CombinedVine : MonoBehaviour
                 tangentLocal = (centerLocal - prevLocal).normalized;
             }
 
-            // Pick an arbitrary vector to define normal/binormal
-            Vector3 arbitraryLocal = Vector3.up;
-            if (Mathf.Abs(Vector3.Dot(tangentLocal, Vector3.up)) > 0.99f)
-                arbitraryLocal = Vector3.right;
+            // Choose an up reference that isn’t too aligned with the tangent.
+            Vector3 upRef = Vector3.up;
+            if (Mathf.Abs(Vector3.Dot(tangentLocal, upRef)) > 0.99f)
+                upRef = Vector3.right;
 
-            Vector3 normalLocal = Vector3.Cross(tangentLocal, arbitraryLocal).normalized;
-            Vector3 binormalLocal = Vector3.Cross(tangentLocal, normalLocal).normalized;
+            // Compute the target rotation for the ring.
+            Quaternion targetRotation = Quaternion.LookRotation(tangentLocal, upRef);
 
-            // Create the ring vertices in local space
+            // Smoothly interpolate with the previous ring's rotation.
+            Quaternion ringRotation = (i == 0) ? targetRotation : Quaternion.Slerp(lastRingRotation, targetRotation, 0.5f);
+            lastRingRotation = ringRotation;
+
+            // Generate ring vertices using the interpolated rotation.
             for (int j = 0; j < circleDivisions; j++)
             {
                 float angle = 2 * Mathf.PI * j / circleDivisions;
-                Vector3 offset = (Mathf.Cos(angle) * normalLocal + Mathf.Sin(angle) * binormalLocal) * radius;
+                // Create a 2D point on a circle (lying in the ring's plane)
+                Vector3 localOffset = new Vector3(Mathf.Cos(angle), Mathf.Sin(angle), 0) * radius;
+                // Rotate the offset into the correct orientation for this ring.
+                Vector3 offset = ringRotation * localOffset;
                 vertices.Add(centerLocal + offset);
-                uvs.Add(new Vector2((float)j / circleDivisions, t));
+                uvs.Add(new Vector2((float)j / circleDivisions, t * uvTileFactor));
             }
         }
 
@@ -282,19 +325,12 @@ public class CombinedVine : MonoBehaviour
 
     void GenerateLeaves()
     {
-        // Optional: Clear existing leaves.
-        foreach (Transform child in transform)
-        {
-            if (child.CompareTag("Leaf"))
-            {
-                Destroy(child.gameObject);
-            }
-        }
-
+        Debug.Log("Generating leaves...");
         for (int i = 0; i < vinePoints.Count; i++)
         {
             if (Random.value <= leafProbability)
             {
+                Debug.Log("Leaf generated at: " + vinePoints[i].point);
                 SpawnLeafAtPoint(i);
             }
         }
@@ -305,6 +341,15 @@ public class CombinedVine : MonoBehaviour
         Vector3 centerWorld = vinePoints[i].point;
         Vector3 surfaceNormal = vinePoints[i].normal;
 
+        // Use the vine's radius (calculated based on position in the vine) to offset leaf position
+        float radius = Mathf.Lerp(startRadius, endRadius, (float)i / (vinePoints.Count - 1));
+        Vector3 leafOffset = surfaceNormal * radius;  // Offset the leaf along the surface normal
+
+        // Add random deviation to make leaf position more natural
+        Vector3 randomDeviation = Random.insideUnitSphere * 0.02f;  // Slight random offset for variation
+        Vector3 leafPosition = centerWorld + leafOffset + randomDeviation;
+
+        // Generate leaf rotation based on surface normal
         float deviationAngle = 5f;
         Vector3 randomAxis = Vector3.Cross(surfaceNormal, Random.onUnitSphere);
         if (randomAxis.sqrMagnitude < 0.001f)
@@ -320,15 +365,16 @@ public class CombinedVine : MonoBehaviour
 
         Quaternion leafRotation = Quaternion.LookRotation(leafForward, adjustedUp);
 
-        Vector3 centerLocal = transform.InverseTransformPoint(centerWorld);
+        // Convert to local space and instantiate the leaf
+        Vector3 centerLocal = transform.InverseTransformPoint(leafPosition);
         GameObject leaf = Instantiate(leafPrefab, transform);
         leaf.transform.localPosition = centerLocal;
         leaf.transform.localRotation = leafRotation;
 
-        float baseScale = 0.006f;
+        // Apply random scale for variety
+        float baseScale = 0.0025f;
         float randomScale = Random.Range(0.8f, 1.2f);
         leaf.transform.localScale = Vector3.one * (baseScale * randomScale);
     }
-
 
 }
