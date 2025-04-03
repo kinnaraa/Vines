@@ -42,6 +42,11 @@ public class CombinedVine : MonoBehaviour
     [Header("Light stuff")]
     public Transform lightTransform;
 
+    private float growthSpeed = 0.1f;
+    private float growthTimer = 0f;
+
+    List<Vertex> smoothedPoints = new List<Vertex>();
+
     void Start()
     {
         mf = GetComponent<MeshFilter>();
@@ -70,15 +75,22 @@ public class CombinedVine : MonoBehaviour
     {
         if (!stopVine && vinePoints.Count < 100)
         {
-            Vertex currentPoint = vinePoints.Last();
-            FindNextPoint(currentPoint);
+            growthTimer += Time.deltaTime;  // Increase the timer by the time passed each frame
+
+            if (growthTimer >= growthSpeed)  // If enough time has passed, add a new point
+            {
+                Vertex currentPoint = vinePoints.Last();
+                FindNextPoint(currentPoint);  // Find the next point based on the algorithm
+                SmoothVine();
+                growthTimer = 0f;  // Reset the timer
+            }
+
             GenerateMesh();
         }
         else
         {
             if (generateLeaves)
             {
-                
                 SmoothVine();
                 GenerateMesh();
                 GenerateLeaves();
@@ -248,33 +260,29 @@ public class CombinedVine : MonoBehaviour
 
     void SmoothVine()
     {
-        // Create a new list for the smoothed points
-        List<Vector3> smoothedPoints = new List<Vector3>();
-
-        // Loop through the vine points and generate intermediate points using Catmull-Rom spline
-        for (int i = 1; i < vinePoints.Count - 2; i++)  // Start from second point and stop before the last two points
+        if (vinePoints.Count() >= 6)
         {
-            Vector3 p0 = vinePoints[i - 1].point;  // Previous point
-            Vector3 p1 = vinePoints[i].point;      // Current point
-            Vector3 p2 = vinePoints[i + 1].point;  // Next point
-            Vector3 p3 = vinePoints[i + 2].point;  // Next next point
+            // Create a new list for the smoothed points
+            smoothedPoints = new List<Vertex>();
 
-            // Interpolate between p1 and p2 using the Catmull-Rom spline
-            for (float t = 0; t <= 1; t += 0.1f)  // Increase the step for smoother or rougher interpolation
+            // Loop through the vine points and generate intermediate points using Catmull-Rom spline
+            for (int i = 1; i < vinePoints.Count - 2; i++)  // Start from second point and stop before the last two points
             {
-                Vector3 smoothedPoint = CatmullRom(p0, p1, p2, p3, t);
-                smoothedPoints.Add(smoothedPoint);
+                Vector3 p0 = vinePoints[i - 1].point;  // Previous point
+                Vector3 p1 = vinePoints[i].point;      // Current point
+                Vector3 p2 = vinePoints[i + 1].point;  // Next point
+                Vector3 p3 = vinePoints[i + 2].point;  // Next next point
+
+                // Interpolate between p1 and p2 using the Catmull-Rom spline
+                for (float t = 0; t <= 1; t += 0.1f)  // Increase the step for smoother or rougher interpolation
+                {
+                    Vector3 smoothedPoint = CatmullRom(p0, p1, p2, p3, t);
+                    smoothedPoints.Add(new Vertex(smoothedPoint, Vector3.up));
+                }
             }
-        }
 
-        // Now replace the old vine points with the smoothed ones
-        vinePoints.Clear();
-        for (int i = 0; i < smoothedPoints.Count; i++)
-        {
-            AddPoint(new Vertex(smoothedPoints[i], Vector3.up));  // You can adjust the normal vector if needed
+            Debug.Log("Smoothing Complete");
         }
-
-        Debug.Log("Smoothing Complete");
     }
 
     Vector3 CatmullRom(Vector3 p0, Vector3 p1, Vector3 p2, Vector3 p3, float t)
@@ -286,7 +294,7 @@ public class CombinedVine : MonoBehaviour
 
     void GenerateMesh()
     {
-        if (vinePoints.Count < 2)
+        if (smoothedPoints.Count < 2)
             return;
 
         List<Vector3> vertices = new List<Vector3>();
@@ -296,26 +304,26 @@ public class CombinedVine : MonoBehaviour
         // We'll store the previous ring rotation to interpolate smoothly
         Quaternion lastRingRotation = Quaternion.identity;
 
-        for (int i = 0; i < vinePoints.Count; i++)
+        for (int i = 0; i < smoothedPoints.Count; i++)
         {
-            float t = (float)i / (vinePoints.Count - 1);
+            float t = (float)i / (smoothedPoints.Count - 1);
             float radius = Mathf.Lerp(startRadius, endRadius, t);
 
             // Offset the center along the vine's normal to help prevent clipping.
-            Vector3 centerWorld = vinePoints[i].point + vinePoints[i].normal * radius;
+            Vector3 centerWorld = smoothedPoints[i].point + smoothedPoints[i].normal * radius;
             Vector3 centerLocal = transform.InverseTransformPoint(centerWorld);
 
             // Compute the tangent using adjacent vine points.
             Vector3 tangentLocal;
-            if (i < vinePoints.Count - 1)
+            if (i < smoothedPoints.Count - 1)
             {
-                Vector3 nextWorld = vinePoints[i + 1].point;
+                Vector3 nextWorld = smoothedPoints[i + 1].point;
                 Vector3 nextLocal = transform.InverseTransformPoint(nextWorld);
                 tangentLocal = (nextLocal - centerLocal).normalized;
             }
             else
             {
-                Vector3 prevWorld = vinePoints[i - 1].point;
+                Vector3 prevWorld = smoothedPoints[i - 1].point;
                 Vector3 prevLocal = transform.InverseTransformPoint(prevWorld);
                 tangentLocal = (centerLocal - prevLocal).normalized;
             }
@@ -346,7 +354,7 @@ public class CombinedVine : MonoBehaviour
         }
 
         // Build triangles by connecting consecutive rings.
-        int ringCount = vinePoints.Count;
+        int ringCount = smoothedPoints.Count;
         for (int i = 0; i < ringCount - 1; i++)
         {
             int ringStart = i * circleDivisions;
@@ -380,11 +388,11 @@ public class CombinedVine : MonoBehaviour
     void GenerateLeaves()
     {
         Debug.Log("Generating leaves...");
-        for (int i = 0; i < vinePoints.Count; i++)
+        for (int i = 0; i < smoothedPoints.Count; i++)
         {
             if (Random.value <= leafProbability)
             {
-                Debug.Log("Leaf generated at: " + vinePoints[i].point);
+                Debug.Log("Leaf generated at: " + smoothedPoints[i].point);
                 SpawnLeafAtPoint(i);
             }
         }
@@ -392,10 +400,10 @@ public class CombinedVine : MonoBehaviour
 
     void SpawnLeafAtPoint(int i)
     {
-        Vector3 centerWorld = vinePoints[i].point;
-        Vector3 surfaceNormal = vinePoints[i].normal;
+        Vector3 centerWorld = smoothedPoints[i].point;
+        Vector3 surfaceNormal = smoothedPoints[i].normal;
 
-        float radius = Mathf.Lerp(startRadius, endRadius, (float)i / (vinePoints.Count - 1));
+        float radius = Mathf.Lerp(startRadius, endRadius, (float)i / (smoothedPoints.Count - 1));
         Vector3 leafOffset = surfaceNormal * radius;
 
         Vector3 randomDeviation = Random.insideUnitSphere * 0.02f;
