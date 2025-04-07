@@ -18,6 +18,7 @@ public class CombinedVine : MonoBehaviour
     [Header("Leaf stuff")]
     public float leafProbability = 0.5f;
     public GameObject leafPrefab;
+    public List<GameObject> leaves = new List<GameObject>();
     public bool generateLeaves = true;
 
     [Header("Stuff")]
@@ -51,6 +52,8 @@ public class CombinedVine : MonoBehaviour
     {
         mf = GetComponent<MeshFilter>();
         mr = GetComponent<MeshRenderer>();
+        environmentMesh = GameObject.Find("default");
+        lightTransform = GameObject.Find("Sun").transform;
         environmentMeshFilter = environmentMesh.GetComponent<MeshFilter>();
 
         if (mr.sharedMaterial == null)
@@ -73,7 +76,7 @@ public class CombinedVine : MonoBehaviour
 
     void Update()
     {
-        if (!stopVine && vinePoints.Count < 100)
+        if (vinePoints.Count > 0 && !stopVine && vinePoints.Count < 100)
         {
             growthTimer += Time.deltaTime;
 
@@ -100,15 +103,13 @@ public class CombinedVine : MonoBehaviour
         return new Vertex(startPosition, Vector3.up);
     }
 
-    void AddPoint(Vertex newPoint)
+    public void AddPoint(Vertex newPoint)
     {
         if (vinePoints.Any(vp => Vector3.Distance(vp.point, newPoint.point) < 0.001f))
         {
             return;
         }
         vinePoints.Add(newPoint);
-
-        Debug.Log("added point: " +  newPoint.point);
 
         if (vinePoints.Count > 1)
         {
@@ -225,11 +226,46 @@ public class CombinedVine : MonoBehaviour
                 for (float t = 0; t <= 1; t += 0.1f)
                 {
                     Vector3 smoothedPoint = CatmullRom(p0, p1, p2, p3, t);
-                    smoothedPoints.Add(new Vertex(smoothedPoint, Vector3.up));
+                    /*if (Physics.OverlapSphere(smoothedPoint, 0.05f).Length > 0)
+                    {
+                        Debug.Log("smoothed point: " + smoothedPoint);
+                        Vector3 closestPoint = environmentMesh.GetComponent<MeshCollider>().ClosestPoint(smoothedPoint);
+
+                        // start a raycast slightly offset in the raycastOffset towards the closestPoint so I can get the surface normal at that point
+                        Vector3 raycastOffset = closestPoint - smoothedPoint;
+                        Vector3 direction = raycastOffset.normalized;
+
+                        Vector3 rayOrigin = smoothedPoint + direction * 0.001f;
+
+                        if (Physics.Raycast(rayOrigin, direction, out RaycastHit hit, 1.0f))
+                        {
+                            Vector3 n = hit.normal;
+
+                            Vector3 newSmoothedPoint = hit.point + n * 0.05f;
+
+                            smoothedPoints.Add(new Vertex(newSmoothedPoint, n));
+
+                        }
+                        else
+                        {
+                            Vector3 avgNormal = (vinePoints[i + 1].normal + vinePoints[i + 2].normal) * 0.5f;
+                            avgNormal.Normalize();
+
+                            Debug.Log("offset direction: " + avgNormal);
+                            Vector3 newSmoothedPoint = closestPoint + avgNormal * 0.05f;
+
+                            Debug.Log("new smoothed point: " + newSmoothedPoint);
+
+                            smoothedPoints.Add(new Vertex(newSmoothedPoint, Vector3.up));
+                        }
+                    }
+                    else
+                    {*/
+                        //Debug.Log("not ovelap");
+                        smoothedPoints.Add(new Vertex(smoothedPoint, Vector3.up));
+                    //}
                 }
             }
-
-            Debug.Log("done smoothing");
         }
     }
 
@@ -362,13 +398,13 @@ public class CombinedVine : MonoBehaviour
 
     void SpawnLeafAtPosition(Vector3 point, Vector3 normal)
     {
-        // Adjust leaf spawn position using the normal and some offset
-        float radius = Mathf.Lerp(startRadius, endRadius, 0.5f); // You can adjust this as needed
+        // get leaf spawn position using the normal and some offset
+        float radius = Mathf.Lerp(startRadius, endRadius, 0.5f); 
         Vector3 leafOffset = normal * radius;
         Vector3 randomDeviation = Random.insideUnitSphere * 0.02f;
         Vector3 leafPosition = point + leafOffset + randomDeviation;
 
-        // Compute leaf rotation
+        // leaf rotation
         float deviationAngle = 5f;
         Vector3 randomAxis = Vector3.Cross(normal, Random.onUnitSphere);
         if (randomAxis.sqrMagnitude < 0.001f)
@@ -389,6 +425,7 @@ public class CombinedVine : MonoBehaviour
         leaf.transform.localPosition = centerLocal;
         leaf.transform.localRotation = leafRotation;
 
+        // scaling
         float baseScale = 0.005f;
         float randomScale = Random.Range(0.6f, 1.4f);
         leaf.transform.localScale = Vector3.one * (baseScale * randomScale);
