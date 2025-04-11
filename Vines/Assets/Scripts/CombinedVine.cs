@@ -16,7 +16,7 @@ public class CombinedVine : MonoBehaviour
         }
     }
     [Header("Leaf stuff")]
-    public float leafProbability = 0.5f;
+    public float leafProbability = 0.7f;
     public GameObject leafPrefab;
     public List<GameObject> leaves = new List<GameObject>();
     public bool generateLeaves = true;
@@ -87,10 +87,9 @@ public class CombinedVine : MonoBehaviour
                 SmoothVine();
                 growthTimer = 0f;
             }
-
             GenerateMesh();
         }
-        
+
     }
 
     Vertex GetGround(Vector3 startPosition)
@@ -110,11 +109,7 @@ public class CombinedVine : MonoBehaviour
             return;
         }
         vinePoints.Add(newPoint);
-
-        if (vinePoints.Count > 1)
-        {
-            SpawnLeavesAtPoint(newPoint);
-        }
+        SpawnLeavesAtPoint(newPoint);
     }
 
     List<Vertex> GetNearbyMeshPoints(Vector3 currentPoint, float radius)
@@ -151,8 +146,7 @@ public class CombinedVine : MonoBehaviour
         Vector3 bestPoint = prevPos;
         Vector3 bestnormal = Vector3.up;
 
-        // get position of sun and direction from vine point to the sun
-        Vector3 lightPosition = lightTransform.position;
+        // get direction "sun" is facing
         Vector3 lightDirection = -lightTransform.forward;
 
         // score each point based on light intensity and upward movement
@@ -215,7 +209,7 @@ public class CombinedVine : MonoBehaviour
             smoothedPoints = new List<Vertex>();
 
             // catmull-rom for interpolating between vinePoints
-            for (int i = 1; i < vinePoints.Count - 2; i++)  // Start from second point and stop before the last two points
+            for (int i = 1; i < vinePoints.Count - 2; i++)  // start from second point and stop before the last two points
             {
                 Vector3 p0 = vinePoints[i - 1].point;  // prev
                 Vector3 p1 = vinePoints[i].point;      // current
@@ -226,44 +220,8 @@ public class CombinedVine : MonoBehaviour
                 for (float t = 0; t <= 1; t += 0.1f)
                 {
                     Vector3 smoothedPoint = CatmullRom(p0, p1, p2, p3, t);
-                    /*if (Physics.OverlapSphere(smoothedPoint, 0.05f).Length > 0)
-                    {
-                        Debug.Log("smoothed point: " + smoothedPoint);
-                        Vector3 closestPoint = environmentMesh.GetComponent<MeshCollider>().ClosestPoint(smoothedPoint);
-
-                        // start a raycast slightly offset in the raycastOffset towards the closestPoint so I can get the surface normal at that point
-                        Vector3 raycastOffset = closestPoint - smoothedPoint;
-                        Vector3 direction = raycastOffset.normalized;
-
-                        Vector3 rayOrigin = smoothedPoint + direction * 0.001f;
-
-                        if (Physics.Raycast(rayOrigin, direction, out RaycastHit hit, 1.0f))
-                        {
-                            Vector3 n = hit.normal;
-
-                            Vector3 newSmoothedPoint = hit.point + n * 0.05f;
-
-                            smoothedPoints.Add(new Vertex(newSmoothedPoint, n));
-
-                        }
-                        else
-                        {
-                            Vector3 avgNormal = (vinePoints[i + 1].normal + vinePoints[i + 2].normal) * 0.5f;
-                            avgNormal.Normalize();
-
-                            Debug.Log("offset direction: " + avgNormal);
-                            Vector3 newSmoothedPoint = closestPoint + avgNormal * 0.05f;
-
-                            Debug.Log("new smoothed point: " + newSmoothedPoint);
-
-                            smoothedPoints.Add(new Vertex(newSmoothedPoint, Vector3.up));
-                        }
-                    }
-                    else
-                    {*/
-                        //Debug.Log("not ovelap");
+                    
                         smoothedPoints.Add(new Vertex(smoothedPoint, Vector3.up));
-                    //}
                 }
             }
         }
@@ -297,7 +255,7 @@ public class CombinedVine : MonoBehaviour
             float radius = Mathf.Lerp(startRadius, endRadius, t);
 
             // offset the center of the mesh by the radius so that it doesn't clip
-            Vector3 centerWorld = smoothedPoints[i].point + smoothedPoints[i].normal * radius;
+            Vector3 centerWorld = smoothedPoints[i].point + smoothedPoints[i].normal * radius * -0.2f;
             Vector3 centerLocal = transform.InverseTransformPoint(centerWorld);
 
             // if there is a next point, use that and the current point to get the tangent
@@ -408,7 +366,9 @@ public class CombinedVine : MonoBehaviour
         float deviationAngle = 5f;
         Vector3 randomAxis = Vector3.Cross(normal, Random.onUnitSphere);
         if (randomAxis.sqrMagnitude < 0.001f)
+        {
             randomAxis = Vector3.right;
+        }
         randomAxis.Normalize();
         Quaternion deviationRotation = Quaternion.AngleAxis(Random.Range(-deviationAngle, deviationAngle), randomAxis);
         Vector3 adjustedUp = deviationRotation * normal;
@@ -416,7 +376,9 @@ public class CombinedVine : MonoBehaviour
         Vector3 randomForwardCandidate = Random.onUnitSphere;
         Vector3 leafForward = Vector3.ProjectOnPlane(randomForwardCandidate, adjustedUp).normalized;
         if (leafForward == Vector3.zero)
+        {
             leafForward = Vector3.forward;
+        }
 
         Quaternion leafRotation = Quaternion.LookRotation(leafForward, adjustedUp);
 
@@ -428,7 +390,7 @@ public class CombinedVine : MonoBehaviour
         // scaling
         float baseScale = 0.005f;
         float randomScale = Random.Range(0.6f, 1.4f);
-        leaf.transform.localScale = Vector3.one * (baseScale * randomScale);
+        leaf.transform.localScale = Vector3.one * (baseScale * randomScale);                                    
     }
 }
 

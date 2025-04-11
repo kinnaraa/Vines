@@ -17,17 +17,15 @@ public class CameraMovement : MonoBehaviour
 
     void Update()
     {
-        // Mouse look: hold down the right mouse button for rotation.
         if (Input.GetMouseButton(1))
         {
             yaw += lookSensitivity * Input.GetAxis("Mouse X");
             pitch -= lookSensitivity * Input.GetAxis("Mouse Y");
-            // Clamp the pitch so you don't over-rotate vertically.
+
             pitch = Mathf.Clamp(pitch, -89f, 89f);
             transform.eulerAngles = new Vector3(pitch, yaw, 0f);
         }
 
-        // Move using keyboard input (WASD for horizontal movement, Q/E for vertical).
         float horizontal = Input.GetAxis("Horizontal");
         float vertical = Input.GetAxis("Vertical");
         float ascendDescend = 0f;
