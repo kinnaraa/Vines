@@ -13,7 +13,7 @@ TagManager:
   - Water
   - UI
   - Vine
-  - 
+  - Highest
   - 
   - 
   - 
@@ -41,6 +41,9 @@ TagManager:
   m_SortingLayers:
   - name: Default
     uniqueID: 0
+    locked: 0
+  - name: ui
+    uniqueID: 3698104527
     locked: 0
   m_RenderingLayers:
   - Default

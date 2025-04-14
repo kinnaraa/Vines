@@ -18,10 +18,8 @@ public class CombinedVine : MonoBehaviour
     [Header("Leaf stuff")]
     public float leafProbability = 0.7f;
     public GameObject leafPrefab;
-    public List<GameObject> leaves = new List<GameObject>();
     public bool generateLeaves = true;
 
-    [Header("Stuff")]
     public List<Vertex> vinePoints = new List<Vertex>();
     public GameObject environmentMesh;
     public MeshFilter environmentMeshFilter;
@@ -33,7 +31,7 @@ public class CombinedVine : MonoBehaviour
     [Header("Mesh tube stuff")]
     public int circleDivisions = 24;
     public float startRadius = 0.06f;
-    public float endRadius = 0.005f;
+    public float endRadius = 0.001f;
     public float uvTileFactor = 10.0f;
     public Texture2D vineTexture;
 
@@ -109,6 +107,9 @@ public class CombinedVine : MonoBehaviour
             return;
         }
         vinePoints.Add(newPoint);
+
+        Debug.Log("added: " + newPoint.point);
+
         SpawnLeavesAtPoint(newPoint);
     }
 
@@ -133,6 +134,32 @@ public class CombinedVine : MonoBehaviour
         }
 
         return nearbyVertices;
+    }
+
+    void AddMidpoint(Vertex lastPoint, Vertex newPoint)
+    {
+        Vector3 midpoint = (lastPoint.point + newPoint.point) * 0.5f;
+        Vector3 averageNormal = (lastPoint.normal + newPoint.normal) * 0.5f;
+
+        float sphereRadius = 0.05f;
+        Collider[] hits = Physics.OverlapSphere(midpoint, sphereRadius);
+        bool inEnvironment = false;
+
+        foreach (Collider hit in hits)
+        {
+            if(hit.gameObject == environmentMesh)
+            {
+                inEnvironment = true;
+                break;
+            }
+        }
+
+        if (inEnvironment)
+        {
+            midpoint += averageNormal * 0.05f;
+        }
+
+        AddPoint(new Vertex(midpoint, averageNormal));
     }
 
     void FindNextPoint(Vertex currentPoint)
@@ -188,7 +215,9 @@ public class CombinedVine : MonoBehaviour
         {
             if (Vector3.Distance(bestPoint, vinePoints.Last().point) > 0.001f)
             {
-                AddPoint(new Vertex(bestPoint, bestnormal));
+                Vertex newPoint = new Vertex(bestPoint, bestnormal);
+                AddMidpoint(currentPoint, newPoint);
+                AddPoint(newPoint);
             }
             else
             {
@@ -217,7 +246,7 @@ public class CombinedVine : MonoBehaviour
                 Vector3 p3 = vinePoints[i + 2].point;  // next next
 
                 // interpolate between p1 and p2 using catmull-rom spline
-                for (float t = 0; t <= 1; t += 0.1f)
+                for (float t = 0; t <= 1; t += 0.01f)
                 {
                     Vector3 smoothedPoint = CatmullRom(p0, p1, p2, p3, t);
                     
@@ -392,6 +421,27 @@ public class CombinedVine : MonoBehaviour
         float randomScale = Random.Range(0.6f, 1.4f);
         leaf.transform.localScale = Vector3.one * (baseScale * randomScale);                                    
     }
+
+    void OnDrawGizmos()
+    {
+        if (vinePoints == null || vinePoints.Count == 0)
+            return;
+
+        // Draw a small sphere at each vine point position
+        Gizmos.color = Color.green;
+        foreach (var v in vinePoints)
+        {
+            Gizmos.DrawSphere(v.point, 0.02f);
+        }
+
+        // Optionally, draw lines between successive points to visualize the vine's path
+        Gizmos.color = Color.red;
+        for (int i = 1; i < vinePoints.Count; i++)
+        {
+            Gizmos.DrawLine(vinePoints[i - 1].point, vinePoints[i].point);
+        }
+    }
+
 }
 
 
