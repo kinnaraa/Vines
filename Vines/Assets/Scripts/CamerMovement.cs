@@ -34,14 +34,15 @@ public class CameraMovement : MonoBehaviour
         if (Input.GetKey(KeyCode.E)) ascendDescend = 1f;
         if (Input.GetKey(KeyCode.Q)) ascendDescend = -1f;
 
-        Vector3 direction = (transform.forward * vertical) + (transform.right * horizontal) + (transform.up * ascendDescend);
+        Vector3 direction = (transform.forward * vertical) + (transform.right * horizontal) + (Vector3.up * ascendDescend);
         transform.position += direction * movementSpeed * Time.deltaTime;
 
         // Clamp the position so the camera stays within the bounds
         Vector3 pos = transform.position;
         pos.x = Mathf.Clamp(pos.x, -18f, 18f);
         pos.z = Mathf.Clamp(pos.z, -34f, 34f);
-        pos.y = 6f;  // Force y to be exactly 6 (or change to a range if needed)
+        pos.y = Mathf.Clamp(pos.y, 0.5f, 18f);  // Allow vertical movement between 4 and 8
         transform.position = pos;
+
     }
 }

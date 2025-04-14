@@ -110,7 +110,10 @@ public class CombinedVine : MonoBehaviour
 
         Debug.Log("added: " + newPoint.point);
 
-        SpawnLeavesAtPoint(newPoint);
+        if(vinePoints.Count > 2)
+        {
+            SpawnLeavesAtPoint(newPoint);
+        }
     }
 
     List<Vertex> GetNearbyMeshPoints(Vector3 currentPoint, float radius)
@@ -141,7 +144,7 @@ public class CombinedVine : MonoBehaviour
         Vector3 midpoint = (lastPoint.point + newPoint.point) * 0.5f;
         Vector3 averageNormal = (lastPoint.normal + newPoint.normal) * 0.5f;
 
-        float sphereRadius = 0.05f;
+        float sphereRadius = endRadius;
         Collider[] hits = Physics.OverlapSphere(midpoint, sphereRadius);
         bool inEnvironment = false;
 
