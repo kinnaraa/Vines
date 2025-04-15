@@ -16,7 +16,7 @@ public class CombinedVine : MonoBehaviour
         }
     }
     [Header("Leaf stuff")]
-    public float leafProbability = 0.7f;
+    public static float leafProbability = 0.4f;
     public GameObject leafPrefab;
     public bool generateLeaves = true;
 
@@ -25,7 +25,7 @@ public class CombinedVine : MonoBehaviour
     public MeshFilter environmentMeshFilter;
 
     [Header("Vine growth stuff")]
-    public float searchRadius = 1.0f;
+    public float searchRadius = 0.6f;
     public bool stopVine = false;
 
     [Header("Mesh tube stuff")]
@@ -74,7 +74,7 @@ public class CombinedVine : MonoBehaviour
 
     void Update()
     {
-        if (vinePoints.Count > 0 && !stopVine && vinePoints.Count < 100)
+        if (vinePoints.Count > 0 && !stopVine)
         {
             growthTimer += Time.deltaTime;
 
@@ -83,11 +83,10 @@ public class CombinedVine : MonoBehaviour
                 Vertex currentPoint = vinePoints.Last();
                 FindNextPoint(currentPoint);
                 SmoothVine();
+                //GenerateMesh();
                 growthTimer = 0f;
             }
-            GenerateMesh();
         }
-
     }
 
     Vertex GetGround(Vector3 startPosition)
@@ -107,8 +106,6 @@ public class CombinedVine : MonoBehaviour
             return;
         }
         vinePoints.Add(newPoint);
-
-        Debug.Log("added: " + newPoint.point);
 
         if(vinePoints.Count > 2)
         {
@@ -144,13 +141,13 @@ public class CombinedVine : MonoBehaviour
         Vector3 midpoint = (lastPoint.point + newPoint.point) * 0.5f;
         Vector3 averageNormal = (lastPoint.normal + newPoint.normal) * 0.5f;
 
-        float sphereRadius = endRadius;
+        float sphereRadius = 0.05f;
         Collider[] hits = Physics.OverlapSphere(midpoint, sphereRadius);
         bool inEnvironment = false;
 
         foreach (Collider hit in hits)
         {
-            if(hit.gameObject == environmentMesh)
+            if (hit.gameObject == environmentMesh)
             {
                 inEnvironment = true;
                 break;
@@ -164,6 +161,8 @@ public class CombinedVine : MonoBehaviour
 
         AddPoint(new Vertex(midpoint, averageNormal));
     }
+
+
 
     void FindNextPoint(Vertex currentPoint)
     {
@@ -257,6 +256,8 @@ public class CombinedVine : MonoBehaviour
                 }
             }
         }
+
+        GenerateMesh();
     }
 
     Vector3 CatmullRom(Vector3 p0, Vector3 p1, Vector3 p2, Vector3 p3, float t)
@@ -267,112 +268,115 @@ public class CombinedVine : MonoBehaviour
 
 
     void GenerateMesh()
+{
+    if (smoothedPoints.Count < 2)
+        return;
+
+    List<Vector3> vertices = new List<Vector3>();
+    List<int> triangles = new List<int>();
+    List<Vector2> uvs = new List<Vector2>();
+
+    // Fallback tangent to use when a computed tangent is near zero
+    Vector3 lastValidTangent = Vector3.forward;
+
+    for (int i = 0; i < smoothedPoints.Count; i++)
     {
-        if (smoothedPoints.Count < 2)
-            return;
-
-        // makes lists for vertices, triangles, and uvs
-        List<Vector3> vertices = new List<Vector3>();
-        List<int> triangles = new List<int>();
-        List<Vector2> uvs = new List<Vector2>();
-
-        Quaternion lastRingRotation = Quaternion.identity;
-
-        for (int i = 0; i < smoothedPoints.Count; i++)
+        // Compute progress along the vine
+        float t = (float)i / (smoothedPoints.Count - 1);
+        float radius = Mathf.Lerp(startRadius, endRadius, t);
+        
+        // Convert the smoothed point from world space to local space
+        Vector3 centerWorld = smoothedPoints[i].point;
+        Vector3 centerLocal = transform.InverseTransformPoint(centerWorld);
+        
+        // Compute the tangent vector for orienting the ring
+        Vector3 tangentLocal = Vector3.zero;
+        if (i < smoothedPoints.Count - 1)
         {
-            // get t which is position along vine basically
-            float t = (float)i / (smoothedPoints.Count - 1);
-
-            // use t to get the right value between the start and end radius of the vine mesh
-            float radius = Mathf.Lerp(startRadius, endRadius, t);
-
-            // offset the center of the mesh by the radius so that it doesn't clip
-            Vector3 centerWorld = smoothedPoints[i].point + smoothedPoints[i].normal * radius * -0.2f;
-            Vector3 centerLocal = transform.InverseTransformPoint(centerWorld);
-
-            // if there is a next point, use that and the current point to get the tangent
-            Vector3 tangentLocal;
-            if (i < smoothedPoints.Count - 1)
-            {
-                Vector3 nextWorld = smoothedPoints[i + 1].point;
-                Vector3 nextLocal = transform.InverseTransformPoint(nextWorld);
-                tangentLocal = (nextLocal - centerLocal).normalized;
-            }
-            else // if there is no next point, use the previous one
-            {
-                Vector3 prevWorld = smoothedPoints[i - 1].point;
-                Vector3 prevLocal = transform.InverseTransformPoint(prevWorld);
-                tangentLocal = (centerLocal - prevLocal).normalized;
-            }
-
-            Vector3 upRef = Vector3.up;
-
-            // get the current vine point's ring rotation based on the up vector and its tangent
-            Quaternion currentIdealRotation = Quaternion.LookRotation(tangentLocal, upRef);
-
-            // if it's the first point, just use the current rotation, if not, interpolate between the last ring and the current one
-            Quaternion ringRotation;
-            if (i == 0)
-            {
-                ringRotation = currentIdealRotation;
-            }
-            else
-            {
-                ringRotation = Quaternion.Slerp(lastRingRotation, currentIdealRotation, 0.5f);
-            }
-
-            // update so this is now the last ring rotation
-            lastRingRotation = ringRotation;
-
-            // get ring vertices by dividing circle into divisions and 
-            for (int j = 0; j < circleDivisions; j++)
-            {
-                float angle = 2 * Mathf.PI * j / circleDivisions;
-                // getting the 2d points of the circle
-                Vector3 localOffset = new Vector3(Mathf.Cos(angle), Mathf.Sin(angle), 0) * radius;
-
-                // rotating the 2d points to the correct orientation in 3d
-                Vector3 offset = ringRotation * localOffset;
-
-                // add that offset to the center of the ring to get its position
-                vertices.Add(centerLocal + offset);
-
-                // get the uv where u is j / number of divisions and v is based on the t value and the tile factor
-                uvs.Add(new Vector2((float)j / circleDivisions, t * uvTileFactor));
-            }
+            Vector3 nextLocal = transform.InverseTransformPoint(smoothedPoints[i + 1].point);
+            tangentLocal = nextLocal - centerLocal;
+        }
+        else
+        {
+            Vector3 prevLocal = transform.InverseTransformPoint(smoothedPoints[i - 1].point);
+            tangentLocal = centerLocal - prevLocal;
         }
 
-        // building triangles!!! yay!
-        for (int i = 0; i < smoothedPoints.Count - 1; i++)
+        // Check and handle near-zero tangent magnitude
+        if (tangentLocal.magnitude < 0.0001f)
         {
-            int ringStart = i * circleDivisions;
-            int nextRingStart = (i + 1) * circleDivisions;
-            for (int j = 0; j < circleDivisions; j++)
-            {
-                // dr peters always said modulo for wrapping !!
-                int current = ringStart + j;
-                int next = ringStart + ((j + 1) % circleDivisions);
-                int nextRingCurrent = nextRingStart + j;
-                int nextRingNext = nextRingStart + ((j + 1) % circleDivisions);
-
-                triangles.Add(current);
-                triangles.Add(next);
-                triangles.Add(nextRingCurrent);
-
-                triangles.Add(next);
-                triangles.Add(nextRingNext);
-                triangles.Add(nextRingCurrent);
-            }
+            tangentLocal = lastValidTangent;
+        }
+        else
+        {
+            tangentLocal.Normalize();
+            lastValidTangent = tangentLocal;
         }
 
-        Mesh mesh = new Mesh();
-        mesh.name = "Vine Mesh";
-        mesh.SetVertices(vertices);
-        mesh.SetTriangles(triangles, 0);
-        mesh.SetUVs(0, uvs);
-        mesh.RecalculateNormals();
-        mf.mesh = mesh;
+        // Calculate a robust coordinate frame for the ring
+        Vector3 arbitrary = Vector3.up;
+        if (Mathf.Abs(Vector3.Dot(arbitrary, tangentLocal)) > 0.99f)
+        {
+            arbitrary = Vector3.forward;
+        }
+        Vector3 binormal = Vector3.Cross(tangentLocal, arbitrary).normalized;
+        Vector3 computedNormal = Vector3.Cross(binormal, tangentLocal).normalized;
+
+        Quaternion currentIdealRotation = Quaternion.LookRotation(tangentLocal, computedNormal);
+        Quaternion ringRotation = currentIdealRotation;
+
+        // Optionally, adjust the center to avoid clipping
+        Vector3 adjustedCenterLocal = centerLocal + transform.InverseTransformDirection(computedNormal) * radius * -0.05f;
+
+        // Create a ring of vertices around the current vine point.
+        for (int j = 0; j < circleDivisions; j++)
+        {
+            float angle = 2f * Mathf.PI * j / circleDivisions;
+            Vector3 localOffset = new Vector3(Mathf.Cos(angle), Mathf.Sin(angle), 0) * radius;
+            Vector3 offset = ringRotation * localOffset;
+            vertices.Add(adjustedCenterLocal + offset);
+
+            // UV mapping
+            uvs.Add(new Vector2((float)j / circleDivisions, t * uvTileFactor));
+        }
     }
+
+    // Build triangles connecting rings.
+    for (int i = 0; i < smoothedPoints.Count - 1; i++)
+    {
+        int ringStart = i * circleDivisions;
+        int nextRingStart = (i + 1) * circleDivisions;
+        for (int j = 0; j < circleDivisions; j++)
+        {
+            int current = ringStart + j;
+            int next = ringStart + ((j + 1) % circleDivisions);
+            int nextRingCurrent = nextRingStart + j;
+            int nextRingNext = nextRingStart + ((j + 1) % circleDivisions);
+
+            triangles.Add(current);
+            triangles.Add(next);
+            triangles.Add(nextRingCurrent);
+
+            triangles.Add(next);
+            triangles.Add(nextRingNext);
+            triangles.Add(nextRingCurrent);
+        }
+    }
+
+    Mesh mesh = new Mesh();
+
+    mesh.indexFormat = UnityEngine.Rendering.IndexFormat.UInt32;
+
+    mesh.name = "Vine Mesh";
+    mesh.SetVertices(vertices);
+    mesh.SetTriangles(triangles, 0);
+    mesh.SetUVs(0, uvs);
+    mesh.RecalculateNormals();
+    mf.mesh = mesh;
+}
+
+
+
 
     void SpawnLeavesAtPoint(Vertex vinePoint)
     {
@@ -427,7 +431,7 @@ public class CombinedVine : MonoBehaviour
 
     void OnDrawGizmos()
     {
-        if (vinePoints == null || vinePoints.Count == 0)
+        if (vinePoints == null || vinePoints.Count == 0 || smoothedPoints == null || smoothedPoints.Count == 0)
             return;
 
         // Draw a small sphere at each vine point position
@@ -442,6 +446,13 @@ public class CombinedVine : MonoBehaviour
         for (int i = 1; i < vinePoints.Count; i++)
         {
             Gizmos.DrawLine(vinePoints[i - 1].point, vinePoints[i].point);
+        }
+
+        Gizmos.color = Color.blue;
+
+        foreach(var v in smoothedPoints)
+        {
+            Gizmos.DrawSphere(v.point, 0.02f);
         }
     }
 
