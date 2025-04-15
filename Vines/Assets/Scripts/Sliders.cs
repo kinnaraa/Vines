@@ -7,9 +7,13 @@ public class Sliders : MonoBehaviour
     public Slider leafSlider;
     public CombinedVine combinedVine;
     public GameObject sun;
+    private float sunXAngle = 45.0f;
 
     void Start()
     {
+        // get vines
+        combinedVine = GameObject.Find("Vine Spawn Point(Clone)").GetComponent<CombinedVine>();
+
         // Set slider ranges
         sunSlider.minValue = 0f;
         sunSlider.maxValue = 180f;
@@ -22,19 +26,19 @@ public class Sliders : MonoBehaviour
 
         // Initialize slider values from current state
         sunSlider.value = sun.transform.eulerAngles.x;
-        leafSlider.value = CombinedVine.leafProbability;
+        leafSlider.value = combinedVine.leafProbability;
     }
 
     // Directly update the sun's rotation on the X-axis
     void UpdateSunRotation(float value)
     {
-        Vector3 currentEuler = sun.transform.eulerAngles;
-        sun.transform.eulerAngles = new Vector3(value, currentEuler.y, currentEuler.z);
+        sunXAngle = value;
+        sun.transform.rotation = Quaternion.Euler(sunXAngle, 0f, 0f);
     }
 
     // Directly update the leaf probability in CombinedVine
     void UpdateLeafProbability(float value)
     {
-        CombinedVine.leafProbability = value;
+        combinedVine.leafProbability = value;
     }
 }

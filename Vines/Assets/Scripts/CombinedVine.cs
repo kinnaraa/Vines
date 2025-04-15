@@ -16,7 +16,7 @@ public class CombinedVine : MonoBehaviour
         }
     }
     [Header("Leaf stuff")]
-    public static float leafProbability = 0.4f;
+    public float leafProbability = 0.4f;
     public GameObject leafPrefab;
     public bool generateLeaves = true;
 
@@ -83,9 +83,9 @@ public class CombinedVine : MonoBehaviour
                 Vertex currentPoint = vinePoints.Last();
                 FindNextPoint(currentPoint);
                 SmoothVine();
-                //GenerateMesh();
                 growthTimer = 0f;
             }
+            GenerateMesh();
         }
     }
 
@@ -257,7 +257,7 @@ public class CombinedVine : MonoBehaviour
             }
         }
 
-        GenerateMesh();
+        //GenerateMesh();
     }
 
     Vector3 CatmullRom(Vector3 p0, Vector3 p1, Vector3 p2, Vector3 p3, float t)

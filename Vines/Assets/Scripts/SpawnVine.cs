@@ -6,10 +6,13 @@ public class SpawnVine : MonoBehaviour
     public Camera cam;
     public CombinedVine combinedVine;
 
+    public GameObject canvas;
+
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
     {
         cam = gameObject.GetComponent<Camera>();
+        canvas.SetActive(false);
     }
 
     // Update is called once per frame
@@ -27,6 +30,8 @@ public class SpawnVine : MonoBehaviour
 
                 combinedVine = vinePrefab.GetComponent<CombinedVine>();
                 combinedVine.AddPoint(new CombinedVine.Vertex(hit.point, hit.normal));
+
+                canvas.SetActive(true);
             }
             else { Debug.Log("not found"); }
         }
