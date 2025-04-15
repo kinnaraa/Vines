@@ -41,10 +41,13 @@ public class CombinedVine : MonoBehaviour
     [Header("Light stuff")]
     public Transform lightTransform;
 
-    private float growthSpeed = 0.05f;
+    private float growthSpeed = 0.075f;
     private float growthTimer = 0f;
 
     List<Vertex> smoothedPoints = new List<Vertex>();
+
+    List<Vector3> worldVertices = new List<Vector3>();
+    List<Vector3> worldNormals = new List<Vector3>();
 
     void Start()
     {
@@ -53,6 +56,15 @@ public class CombinedVine : MonoBehaviour
         environmentMesh = GameObject.Find("default");
         lightTransform = GameObject.Find("Sun").transform;
         environmentMeshFilter = environmentMesh.GetComponent<MeshFilter>();
+
+        Vector3[] localVertices = environmentMeshFilter.mesh.vertices;
+        Vector3[] localNormals = environmentMeshFilter.mesh.normals;
+
+        for (int i = 0; i < localVertices.Length; i++)
+        {
+            worldVertices.Add(environmentMesh.transform.TransformPoint(localVertices[i]));
+            worldNormals.Add(environmentMesh.transform.TransformDirection(localNormals[i]).normalized);
+        }
 
         if (mr.sharedMaterial == null)
         {
@@ -107,7 +119,7 @@ public class CombinedVine : MonoBehaviour
         }
         vinePoints.Add(newPoint);
 
-        if(vinePoints.Count > 2)
+        if(vinePoints.Count > 4)
         {
             SpawnLeavesAtPoint(newPoint);
         }
@@ -122,14 +134,10 @@ public class CombinedVine : MonoBehaviour
 
         for (int i = 0; i < vertices.Length; i++)
         {
-            // get vertex data in world space
-            Vector3 worldVertex = environmentMesh.transform.TransformPoint(vertices[i]);
-            Vector3 worldNormal = environmentMesh.transform.TransformDirection(normals[i]).normalized;
-
             // get nearby points only
-            if (Vector3.Distance(worldVertex, currentPoint) <= radius)
+            if (Vector3.Distance(worldVertices[i], currentPoint) <= radius)
             {
-                nearbyVertices.Add(new Vertex(worldVertex, worldNormal));
+                nearbyVertices.Add(new Vertex(worldVertices[i], worldNormals[i]));
             }
         }
 
@@ -248,7 +256,7 @@ public class CombinedVine : MonoBehaviour
                 Vector3 p3 = vinePoints[i + 2].point;  // next next
 
                 // interpolate between p1 and p2 using catmull-rom spline
-                for (float t = 0; t <= 1; t += 0.01f)
+                for (float t = 0; t <= 1; t += 0.05f)
                 {
                     Vector3 smoothedPoint = CatmullRom(p0, p1, p2, p3, t);
                     
@@ -256,8 +264,6 @@ public class CombinedVine : MonoBehaviour
                 }
             }
         }
-
-        //GenerateMesh();
     }
 
     Vector3 CatmullRom(Vector3 p0, Vector3 p1, Vector3 p2, Vector3 p3, float t)
@@ -376,8 +382,6 @@ public class CombinedVine : MonoBehaviour
     mesh.RecalculateNormals();
     mf.mesh = mesh;
 }
-
-
 
 
     void SpawnLeavesAtPoint(Vertex vinePoint)
