@@ -129,10 +129,8 @@ public class CombinedVine : MonoBehaviour
     {
         List<Vertex> nearbyVertices = new List<Vertex>();
         Mesh mesh = environmentMeshFilter.mesh;
-        Vector3[] vertices = mesh.vertices;
-        Vector3[] normals = mesh.normals;
 
-        for (int i = 0; i < vertices.Length; i++)
+        for (int i = 0; i < worldVertices.Count; i++)
         {
             // get nearby points only
             if (Vector3.Distance(worldVertices[i], currentPoint) <= radius)
@@ -433,33 +431,6 @@ public class CombinedVine : MonoBehaviour
         float baseScale = 0.005f;
         float randomScale = Random.Range(0.6f, 1.4f);
         leaf.transform.localScale = Vector3.one * (baseScale * randomScale);                                    
-    }
-
-    void OnDrawGizmos()
-    {
-        if (vinePoints == null || vinePoints.Count == 0 || smoothedPoints == null || smoothedPoints.Count == 0)
-            return;
-
-        // Draw a small sphere at each vine point position
-        Gizmos.color = Color.green;
-        foreach (var v in vinePoints)
-        {
-            Gizmos.DrawSphere(v.point, 0.02f);
-        }
-
-        // Optionally, draw lines between successive points to visualize the vine's path
-        Gizmos.color = Color.red;
-        for (int i = 1; i < vinePoints.Count; i++)
-        {
-            Gizmos.DrawLine(vinePoints[i - 1].point, vinePoints[i].point);
-        }
-
-        Gizmos.color = Color.blue;
-
-        foreach(var v in smoothedPoints)
-        {
-            Gizmos.DrawSphere(v.point, 0.02f);
-        }
     }
 
 }
