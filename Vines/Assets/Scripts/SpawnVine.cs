@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.UI;
 
 public class SpawnVine : MonoBehaviour
 {
@@ -8,11 +9,19 @@ public class SpawnVine : MonoBehaviour
 
     public GameObject canvas;
 
+    public Slider leafSlider;
+
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
     {
         cam = gameObject.GetComponent<Camera>();
         canvas.SetActive(false);
+
+        if (leafSlider == null)
+        {
+            var s = FindFirstObjectByType<Sliders>();
+            if (s != null) leafSlider = s.leafSlider;
+        }
     }
 
     // Update is called once per frame
@@ -29,6 +38,10 @@ public class SpawnVine : MonoBehaviour
                 Instantiate(vinePrefab, spawnPoint, Quaternion.identity);
 
                 combinedVine = vinePrefab.GetComponent<CombinedVine>();
+
+                combinedVine.leafProbability = leafSlider != null? leafSlider.value: combinedVine.leafProbability;
+                combinedVine.RedoLeaves();
+
                 combinedVine.AddPoint(new CombinedVine.Vertex(hit.point, hit.normal));
 
                 canvas.SetActive(true);

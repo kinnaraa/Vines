@@ -99,6 +99,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 68b1082ea639cbf479a5d6d5b01abac3, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  leafProbability: 0.4
   leafPrefab: {fileID: 582608985691338941, guid: f334a7d56e4024047a7161b07e2e6081,
     type: 3}
   generateLeaves: 1
@@ -106,9 +107,9 @@ MonoBehaviour:
   environmentMeshFilter: {fileID: 0}
   searchRadius: 0.4
   stopVine: 0
-  circleDivisions: 24
+  circleDivisions: 18
   startRadius: 0.06
-  endRadius: 0.001
+  endRadius: 0.003
   uvTileFactor: 10
   vineTexture: {fileID: 2800000, guid: 3c54e4c6bd6353c438e2e337546e3664, type: 3}
   lightTransform: {fileID: 0}

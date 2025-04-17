@@ -19,6 +19,8 @@ public class CombinedVine : MonoBehaviour
     public float leafProbability = 0.4f;
     public GameObject leafPrefab;
     public bool generateLeaves = true;
+    private List<GameObject> spawnedLeaves = new List<GameObject>();
+
 
     public List<Vertex> vinePoints = new List<Vertex>();
     public GameObject environmentMesh;
@@ -41,7 +43,7 @@ public class CombinedVine : MonoBehaviour
     [Header("Light stuff")]
     public Transform lightTransform;
 
-    private float growthSpeed = 0.075f;
+    private float growthSpeed = 0.1f;
     private float growthTimer = 0f;
 
     List<Vertex> smoothedPoints = new List<Vertex>();
@@ -101,6 +103,31 @@ public class CombinedVine : MonoBehaviour
         }
     }
 
+
+    public void CleanUpLeaves()
+    {
+        var leaves = GameObject.FindGameObjectsWithTag("Leaf");
+
+        foreach (var leaf in leaves)
+        {
+            bool hasRequiredParent = false;
+            Transform p = leaf.transform.parent;
+            while (p != null)
+            {
+                if (p.name == "Vine Spawn Point(Clone)")
+                {
+                    hasRequiredParent = true;
+                    break;
+                }
+                p = p.parent;
+            }
+
+            if (!hasRequiredParent)
+                Destroy(leaf);
+        }
+    }
+
+
     Vertex GetGround(Vector3 startPosition)
     {
         RaycastHit hit;
@@ -124,6 +151,24 @@ public class CombinedVine : MonoBehaviour
             SpawnLeavesAtPoint(newPoint);
         }
     }
+
+    public void RedoLeaves()
+    {
+        Debug.Log("redoing leaves");
+
+        // destroy old leaves
+        foreach (var leaf in spawnedLeaves)
+            Destroy(leaf);
+        spawnedLeaves.Clear();
+
+        if (!generateLeaves)
+            return;
+
+        // respawn leaves on every existing segment
+        foreach (var vp in vinePoints.Skip(4))
+            SpawnLeavesAtPoint(vp);
+    }
+
 
     List<Vertex> GetNearbyMeshPoints(Vector3 currentPoint, float radius)
     {
@@ -430,7 +475,10 @@ public class CombinedVine : MonoBehaviour
         // scaling
         float baseScale = 0.005f;
         float randomScale = Random.Range(0.6f, 1.4f);
-        leaf.transform.localScale = Vector3.one * (baseScale * randomScale);                                    
+        leaf.transform.localScale = Vector3.one * (baseScale * randomScale);
+
+        spawnedLeaves.Add(leaf);
+        CleanUpLeaves();
     }
 
 }

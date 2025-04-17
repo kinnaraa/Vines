@@ -5,40 +5,47 @@ public class Sliders : MonoBehaviour
 {
     public Slider sunSlider;
     public Slider leafSlider;
-    public CombinedVine combinedVine;
     public GameObject sun;
     private float sunXAngle = 45.0f;
+    private GameObject[] vines;
 
     void Start()
     {
-        // get vines
-        combinedVine = GameObject.Find("Vine Spawn Point(Clone)").GetComponent<CombinedVine>();
-
-        // Set slider ranges
+        vines = GameObject.FindGameObjectsWithTag("Vine");
+        
         sunSlider.minValue = 0f;
         sunSlider.maxValue = 180f;
         leafSlider.minValue = 0f;
         leafSlider.maxValue = 1f;
 
-        // Set up listeners for slider value changes
         sunSlider.onValueChanged.AddListener(UpdateSunRotation);
         leafSlider.onValueChanged.AddListener(UpdateLeafProbability);
 
-        // Initialize slider values from current state
         sunSlider.value = sun.transform.eulerAngles.x;
-        leafSlider.value = combinedVine.leafProbability;
+
+        leafSlider.value = 0.4f;
+
     }
 
-    // Directly update the sun's rotation on the X-axis
     void UpdateSunRotation(float value)
     {
         sunXAngle = value;
         sun.transform.rotation = Quaternion.Euler(sunXAngle, 0f, 0f);
     }
 
-    // Directly update the leaf probability in CombinedVine
     void UpdateLeafProbability(float value)
     {
-        combinedVine.leafProbability = value;
+        leafSlider.value = value;
+        var allVines = GameObject.FindGameObjectsWithTag("Vine");
+
+        foreach (var vineObject in allVines)
+        {
+            CombinedVine vine = vineObject.GetComponent<CombinedVine>();
+            // 3) set the new probability
+            vine.leafProbability = value;
+            // 4) rebuild leaves immediately
+            vine.RedoLeaves();
+            vine.CleanUpLeaves();
+        }
     }
 }
