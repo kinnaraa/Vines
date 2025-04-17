@@ -27,13 +27,13 @@ public class CombinedVine : MonoBehaviour
     public MeshFilter environmentMeshFilter;
 
     [Header("Vine growth stuff")]
-    public float searchRadius = 0.6f;
+    public float searchRadius = 0.4f;
     public bool stopVine = false;
 
     [Header("Mesh tube stuff")]
-    public int circleDivisions = 24;
+    public int circleDivisions = 12;
     public float startRadius = 0.06f;
-    public float endRadius = 0.001f;
+    public float endRadius = 0.003f;
     public float uvTileFactor = 10.0f;
     public Texture2D vineTexture;
 
@@ -50,6 +50,7 @@ public class CombinedVine : MonoBehaviour
 
     List<Vector3> worldVertices = new List<Vector3>();
     List<Vector3> worldNormals = new List<Vector3>();
+
 
     void Start()
     {

@@ -39,9 +39,9 @@ public class CameraMovement : MonoBehaviour
 
         // Clamp the position so the camera stays within the bounds
         Vector3 pos = transform.position;
-        pos.x = Mathf.Clamp(pos.x, -18f, 18f);
-        pos.z = Mathf.Clamp(pos.z, -34f, 34f);
-        pos.y = Mathf.Clamp(pos.y, 0.5f, 18f);  // Allow vertical movement between 4 and 8
+        pos.x = Mathf.Clamp(pos.x, -25, 25f);
+        pos.z = Mathf.Clamp(pos.z, -38, 38f);
+        pos.y = Mathf.Clamp(pos.y, 0.5f, 40f);  // Allow vertical movement between 4 and 8
         transform.position = pos;
 
     }

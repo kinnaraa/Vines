@@ -107,7 +107,7 @@ MonoBehaviour:
   environmentMeshFilter: {fileID: 0}
   searchRadius: 0.4
   stopVine: 0
-  circleDivisions: 18
+  circleDivisions: 12
   startRadius: 0.06
   endRadius: 0.003
   uvTileFactor: 10

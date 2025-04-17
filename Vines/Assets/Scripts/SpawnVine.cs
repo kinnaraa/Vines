@@ -11,17 +11,13 @@ public class SpawnVine : MonoBehaviour
 
     public Slider leafSlider;
 
+    public GameObject environmentMesh;
+
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
     {
         cam = gameObject.GetComponent<Camera>();
         canvas.SetActive(false);
-
-        if (leafSlider == null)
-        {
-            var s = FindFirstObjectByType<Sliders>();
-            if (s != null) leafSlider = s.leafSlider;
-        }
     }
 
     // Update is called once per frame
@@ -32,21 +28,26 @@ public class SpawnVine : MonoBehaviour
             Ray ray = cam.ScreenPointToRay(Input.mousePosition);
             if(Physics.Raycast(ray, out RaycastHit hit, 100.0f))
             {
-                Debug.Log("spawn point at " + hit.point);
-                Vector3 spawnPoint = hit.point;
+                if (hit.collider.gameObject == environmentMesh)
+                {
+                    Debug.Log("spawn point at " + hit.point);
 
-                Instantiate(vinePrefab, spawnPoint, Quaternion.identity);
+                    Instantiate(vinePrefab, hit.point, Quaternion.identity);
 
-                combinedVine = vinePrefab.GetComponent<CombinedVine>();
+                    combinedVine = vinePrefab.GetComponent<CombinedVine>();
 
-                combinedVine.leafProbability = leafSlider != null? leafSlider.value: combinedVine.leafProbability;
-                combinedVine.RedoLeaves();
+                    combinedVine.leafProbability = leafSlider.value;
+                    combinedVine.RedoLeaves();
 
-                combinedVine.AddPoint(new CombinedVine.Vertex(hit.point, hit.normal));
+                    combinedVine.AddPoint(new CombinedVine.Vertex(hit.point, hit.normal));
 
-                canvas.SetActive(true);
+                    canvas.SetActive(true);
+                }
+                else
+                {
+                    Debug.Log("no vine spawned");
+                }                
             }
-            else { Debug.Log("not found"); }
         }
     }
 }
