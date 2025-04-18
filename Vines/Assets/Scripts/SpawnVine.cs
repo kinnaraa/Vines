@@ -32,9 +32,9 @@ public class SpawnVine : MonoBehaviour
                 {
                     Debug.Log("spawn point at " + hit.point);
 
-                    Instantiate(vinePrefab, hit.point, Quaternion.identity);
+                    GameObject vine = Instantiate(vinePrefab, hit.point, Quaternion.identity);
 
-                    combinedVine = vinePrefab.GetComponent<CombinedVine>();
+                    combinedVine = vine.GetComponent<CombinedVine>();
 
                     combinedVine.leafProbability = leafSlider.value;
                     combinedVine.RedoLeaves();

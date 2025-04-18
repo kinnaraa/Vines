@@ -143,6 +143,7 @@ public class CombinedVine : MonoBehaviour
     {
         if (vinePoints.Any(vp => Vector3.Distance(vp.point, newPoint.point) < 0.001f))
         {
+            stopVine = true;
             return;
         }
         vinePoints.Add(newPoint);
