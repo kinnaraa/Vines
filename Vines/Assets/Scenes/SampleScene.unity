@@ -2399,6 +2399,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 20775523afa3eb14ba38dc0121e0d134, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  sunSlider: {fileID: 2050067528}
+  leafSlider: {fileID: 1600625219}
+  startRadiusSlider: {fileID: 56529662}
+  endRadiusSlider: {fileID: 708132234}
 --- !u!4 &1226423508
 Transform:
   m_ObjectHideFlags: 0

@@ -163,8 +163,6 @@ public class CombinedVine : MonoBehaviour
 
     public void RedoLeaves()
     {
-        Debug.Log("redoing leaves");
-
         // destroy old leaves
         foreach (var leaf in spawnedLeaves)
             Destroy(leaf);

@@ -1,8 +1,14 @@
 using UnityEngine;
 using UnityEngine.SceneManagement;
+using UnityEngine.UI;
 
 public class ResetVines : MonoBehaviour
 {
+    public Slider sunSlider;
+    public Slider leafSlider;
+    public Slider startRadiusSlider;
+    public Slider endRadiusSlider;
+
     // Reset scene
     public void ResetScene()
     {
@@ -11,5 +17,9 @@ public class ResetVines : MonoBehaviour
         {
             Destroy(vine);
         }
+        sunSlider.value = 45.0f;
+        leafSlider.value = 0.4f;
+        startRadiusSlider.value = 0.06f;
+        endRadiusSlider.value = 0.001f;
     }
 }
