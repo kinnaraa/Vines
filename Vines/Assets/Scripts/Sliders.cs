@@ -5,6 +5,9 @@ public class Sliders : MonoBehaviour
 {
     public Slider sunSlider;
     public Slider leafSlider;
+    public Slider startRadiusSlider;
+    public Slider endRadiusSlider;
+
     public GameObject sun;
     private float sunXAngle = 45.0f;
 
@@ -21,6 +24,16 @@ public class Sliders : MonoBehaviour
         sunSlider.value = sun.transform.eulerAngles.x;
 
         leafSlider.value = 0.4f;
+
+        startRadiusSlider.minValue = 0.001f;
+        startRadiusSlider.maxValue = 0.2f;
+        startRadiusSlider.onValueChanged.AddListener(UpdateStartRadius);
+        startRadiusSlider.value = 0.06f;
+
+        endRadiusSlider.minValue = 0.001f;
+        endRadiusSlider.maxValue = 0.2f;
+        endRadiusSlider.onValueChanged.AddListener(UpdateEndRadius);
+        endRadiusSlider.value = 0.001f;
 
     }
 
@@ -46,11 +59,31 @@ public class Sliders : MonoBehaviour
         foreach (var vineObject in allVines)
         {
             CombinedVine vine = vineObject.GetComponent<CombinedVine>();
-            // 3) set the new probability
             vine.leafProbability = value;
-            // 4) rebuild leaves immediately
             vine.RedoLeaves();
             vine.CleanUpLeaves();
+        }
+    }
+
+    void UpdateStartRadius(float value)
+    {
+        startRadiusSlider.value = value;
+        foreach (var vineObject in GameObject.FindGameObjectsWithTag("Vine"))
+        {
+            var vine = vineObject.GetComponent<CombinedVine>();
+            vine.startRadius = value;
+            vine.GenerateMesh();
+        }
+    }
+
+    void UpdateEndRadius(float value)
+    {
+        endRadiusSlider.value = value;
+        foreach (var vineObject in GameObject.FindGameObjectsWithTag("Vine"))
+        {
+            var vine = vineObject.GetComponent<CombinedVine>();
+            vine.endRadius = value;
+            vine.GenerateMesh();
         }
     }
 }

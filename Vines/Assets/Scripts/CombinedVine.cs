@@ -43,13 +43,21 @@ public class CombinedVine : MonoBehaviour
     [Header("Light stuff")]
     public Transform lightTransform;
 
-    private float growthSpeed = 0.1f;
+    private float growthSpeed = 0.075f;
     private float growthTimer = 0f;
 
     List<Vertex> smoothedPoints = new List<Vertex>();
 
     List<Vector3> worldVertices = new List<Vector3>();
     List<Vector3> worldNormals = new List<Vector3>();
+
+    Transform tr;
+    Vector3[] localPts, tangents, normals;
+    Vector3[] circleDirs;
+    List<Vector3> verts;
+    List<Vector2> uvs;
+    List<int> tris;
+
 
 
     void Start()
@@ -62,6 +70,18 @@ public class CombinedVine : MonoBehaviour
 
         Vector3[] localVertices = environmentMeshFilter.mesh.vertices;
         Vector3[] localNormals = environmentMeshFilter.mesh.normals;
+
+        tr = transform;
+        verts = new List<Vector3>();
+        uvs = new List<Vector2>();
+        tris = new List<int>();
+
+        circleDirs = new Vector3[circleDivisions];
+        for (int j = 0; j < circleDivisions; j++)
+        {
+            float ang = 2f * Mathf.PI * j / circleDivisions;
+            circleDirs[j] = new Vector3(Mathf.Cos(ang), Mathf.Sin(ang), 0f);
+        }
 
         for (int i = 0; i < localVertices.Length; i++)
         {
@@ -82,9 +102,6 @@ public class CombinedVine : MonoBehaviour
             }
             mr.material = mat;
         }
-
-        AddPoint(GetGround(transform.position));
-        GenerateMesh();
     }
 
     void Update()
@@ -129,16 +146,6 @@ public class CombinedVine : MonoBehaviour
     }
 
 
-    Vertex GetGround(Vector3 startPosition)
-    {
-        RaycastHit hit;
-        if (Physics.Raycast(startPosition + Vector3.up, Vector3.down, out hit, 10.0f))
-        {
-            return new Vertex(hit.point, hit.normal);
-        }
-        return new Vertex(startPosition, Vector3.up);
-    }
-
     public void AddPoint(Vertex newPoint)
     {
         if (vinePoints.Any(vp => Vector3.Distance(vp.point, newPoint.point) < 0.001f))
@@ -162,9 +169,6 @@ public class CombinedVine : MonoBehaviour
         foreach (var leaf in spawnedLeaves)
             Destroy(leaf);
         spawnedLeaves.Clear();
-
-        if (!generateLeaves)
-            return;
 
         // respawn leaves on every existing segment
         foreach (var vp in vinePoints.Skip(4))
@@ -318,115 +322,106 @@ public class CombinedVine : MonoBehaviour
     }
 
 
-    void GenerateMesh()
-{
-        if (smoothedPoints.Count < 2)
-            return;
+    public void GenerateMesh()
+    {
+        int N = smoothedPoints.Count;
+        if (N < 2) return;
 
-        List<Vector3> vertices = new List<Vector3>();
-        List<int> triangles = new List<int>();
-        List<Vector2> uvs = new List<Vector2>();
-
-        Vector3 lastValidTangent = Vector3.forward;
-
-        for (int i = 0; i < smoothedPoints.Count; i++)
+        if (localPts == null || localPts.Length != N)
         {
-            // get progress
-            float t = (float)i / (smoothedPoints.Count - 1);
+            localPts = new Vector3[N];
+            tangents = new Vector3[N];
+            normals = new Vector3[N];
+        }
+
+        verts.Clear();
+        uvs.Clear();
+        tris.Clear();
+
+        for (int i = 0; i < N; i++)
+            localPts[i] = tr.InverseTransformPoint(smoothedPoints[i].point);
+
+        Vector3 lastT = Vector3.forward;
+        for (int i = 0; i < N; i++)
+        {
+            Vector3 a = localPts[i];
+            Vector3 b = (i < N - 1) ? localPts[i + 1] : localPts[i - 1];
+            Vector3 tng = b - a;
+            if (tng.sqrMagnitude < 1e-8f)
+                tng = lastT;
+            else
+            {
+                tng.Normalize();
+                lastT = tng;
+            }
+            tangents[i] = tng;
+        }
+
+        Vector3 up = Vector3.up;
+        if (Mathf.Abs(Vector3.Dot(up, tangents[0])) > 0.99f)
+            up = Vector3.forward;
+
+        normals[0] = (up - Vector3.Dot(up, tangents[0]) * tangents[0]).normalized;
+
+        for (int i = 1; i < N; i++)
+        {
+            Vector3 prevN = normals[i - 1];
+            Vector3 tn = tangents[i];
+            Vector3 proj = prevN - Vector3.Dot(prevN, tn) * tn;
+
+            if (proj.sqrMagnitude < 1e-8f)
+            {
+                proj = Vector3.Cross(tn, Vector3.up);
+                if (proj.sqrMagnitude < 1e-8f)
+                    proj = Vector3.Cross(tn, Vector3.forward);
+            }
+
+            normals[i] = proj.normalized;
+        }
+
+        for (int i = 0; i < N; i++)
+        {
+            float t = (float)i / (N - 1);
             float radius = Mathf.Lerp(startRadius, endRadius, t);
-        
-            // convert smoothed point from world space to local space
-            Vector3 centerWorld = smoothedPoints[i].point;
-            Vector3 centerLocal = transform.InverseTransformPoint(centerWorld);
-        
-            // compute tangent for orienting the ring
-            Vector3 tangentLocal = Vector3.zero;
 
-            if (i < smoothedPoints.Count - 1)
-            {
-                Vector3 nextLocal = transform.InverseTransformPoint(smoothedPoints[i + 1].point);
-                tangentLocal = nextLocal - centerLocal;
-            }
-            else
-            {
-                Vector3 prevLocal = transform.InverseTransformPoint(smoothedPoints[i - 1].point);
-                tangentLocal = centerLocal - prevLocal;
-            }
+            Vector3 center = localPts[i];
+            Quaternion rot = Quaternion.LookRotation(tangents[i], normals[i]);
 
-            if (tangentLocal.magnitude < 0.0001f)
-            {
-                tangentLocal = lastValidTangent;
-            }
-            else
-            {
-                tangentLocal.Normalize();
-                lastValidTangent = tangentLocal;
-            }
-
-                tangentLocal.Normalize();
-
-            Vector3 arbitrary = Vector3.up;
-
-            if (Mathf.Abs(Vector3.Dot(arbitrary, tangentLocal)) > 0.99f)
-            {
-                arbitrary = Vector3.forward;
-            }
-            
-            Vector3 binormal = Vector3.Cross(tangentLocal, arbitrary).normalized;
-            Vector3 computedNormal = Vector3.Cross(binormal, tangentLocal).normalized;
-
-            Quaternion currentIdealRotation = Quaternion.LookRotation(tangentLocal, computedNormal);
-            Quaternion ringRotation = currentIdealRotation;
-
-            // adjust center to avoid clipping
-            Vector3 adjustedCenterLocal = centerLocal + transform.InverseTransformDirection(computedNormal) * radius * -0.05f;
-
-            // ring of verticies around the point
             for (int j = 0; j < circleDivisions; j++)
             {
-                float angle = 2f * Mathf.PI * j / circleDivisions;
-                Vector3 localOffset = new Vector3(Mathf.Cos(angle), Mathf.Sin(angle), 0) * radius;
-                Vector3 offset = ringRotation * localOffset;
-                vertices.Add(adjustedCenterLocal + offset);
-
-                // uv mapping
+                Vector3 offset = rot * (circleDirs[j] * radius);
+                verts.Add(center + offset);
                 uvs.Add(new Vector2((float)j / circleDivisions, t * uvTileFactor));
             }
-    }
+        }
 
-        // build triangles!
-        for (int i = 0; i < smoothedPoints.Count - 1; i++)
+        for (int i = 0; i < N - 1; i++)
         {
-            int ringStart = i * circleDivisions;
-            int nextRingStart = (i + 1) * circleDivisions;
+            int aBase = i * circleDivisions;
+            int bBase = (i + 1) * circleDivisions;
+
             for (int j = 0; j < circleDivisions; j++)
             {
-                int current = ringStart + j;
-                int next = ringStart + ((j + 1) % circleDivisions);
-                int nextRingCurrent = nextRingStart + j;
-                int nextRingNext = nextRingStart + ((j + 1) % circleDivisions);
+                int a = aBase + j;
+                int b = aBase + ((j + 1) % circleDivisions);
+                int c = bBase + j;
+                int d = bBase + ((j + 1) % circleDivisions);
 
-                triangles.Add(current);
-                triangles.Add(next);
-                triangles.Add(nextRingCurrent);
-
-                triangles.Add(next);
-                triangles.Add(nextRingNext);
-                triangles.Add(nextRingCurrent);
+                tris.Add(a); tris.Add(b); tris.Add(c);
+                tris.Add(b); tris.Add(d); tris.Add(c);
             }
+        }
+
+        var mesh = mf.sharedMesh ?? new Mesh { indexFormat = UnityEngine.Rendering.IndexFormat.UInt32 };
+        mesh.Clear();
+        mesh.SetVertices(verts);
+        mesh.SetUVs(0, uvs);
+        mesh.SetTriangles(tris, 0);
+        mesh.RecalculateNormals();
+
+        mf.sharedMesh = mesh;
     }
 
-    Mesh mesh = new Mesh();
-
-    mesh.indexFormat = UnityEngine.Rendering.IndexFormat.UInt32;
-
-    mesh.name = "Vine Mesh";
-    mesh.SetVertices(vertices);
-    mesh.SetTriangles(triangles, 0);
-    mesh.SetUVs(0, uvs);
-    mesh.RecalculateNormals();
-    mf.mesh = mesh;
-}
 
 
     void SpawnLeavesAtPoint(Vertex vinePoint)
@@ -439,6 +434,7 @@ public class CombinedVine : MonoBehaviour
                 SpawnLeafAtPosition(vinePoint.point, vinePoint.normal);
             }
         }
+        CleanUpLeaves();
     }
 
     void SpawnLeafAtPosition(Vector3 point, Vector3 normal)
@@ -480,7 +476,6 @@ public class CombinedVine : MonoBehaviour
         leaf.transform.localScale = Vector3.one * (baseScale * randomScale);
 
         spawnedLeaves.Add(leaf);
-        CleanUpLeaves();
     }
 
 }

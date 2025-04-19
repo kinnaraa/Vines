@@ -10,6 +10,8 @@ public class SpawnVine : MonoBehaviour
     public GameObject canvas;
 
     public Slider leafSlider;
+    public Slider startRadiusSlider;
+    public Slider endRadiusSlider;
 
     public GameObject environmentMesh;
 
@@ -38,6 +40,9 @@ public class SpawnVine : MonoBehaviour
 
                     combinedVine.leafProbability = leafSlider.value;
                     combinedVine.RedoLeaves();
+
+                    combinedVine.startRadius = startRadiusSlider.value;
+                    combinedVine.endRadius = endRadiusSlider.value;
 
                     combinedVine.AddPoint(new CombinedVine.Vertex(hit.point, hit.normal));
 
