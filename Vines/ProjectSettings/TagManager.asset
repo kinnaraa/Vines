@@ -6,6 +6,7 @@ TagManager:
   tags:
   - Vine
   - Leaf
+  - blocker
   layers:
   - Default
   - TransparentFX

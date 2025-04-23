@@ -57,7 +57,7 @@ public class CombinedVine : MonoBehaviour
     List<Vector3> verts;
     List<Vector2> uvs;
     List<int> tris;
-
+    float surfaceOffset = 0.07f;
 
 
     void Start()
@@ -148,11 +148,13 @@ public class CombinedVine : MonoBehaviour
 
     public void AddPoint(Vertex newPoint)
     {
-        if (vinePoints.Any(vp => Vector3.Distance(vp.point, newPoint.point) < 0.001f))
+        if (vinePoints.Any(vp => Vector3.Distance(vp.point - vp.normal.normalized * surfaceOffset, newPoint.point) < 0.001f))
         {
             stopVine = true;
             return;
         }
+
+        newPoint.point += newPoint.normal.normalized * surfaceOffset;
         vinePoints.Add(newPoint);
 
         if(vinePoints.Count > 4)
@@ -193,28 +195,26 @@ public class CombinedVine : MonoBehaviour
 
     void AddMidpoint(Vertex lastPoint, Vertex newPoint)
     {
-        Vector3 midpoint = (lastPoint.point + newPoint.point) * 0.5f;
-        Vector3 averageNormal = (lastPoint.normal + newPoint.normal) * 0.5f;
+        Vector3 rawMid = (lastPoint.point + newPoint.point) * 0.5f;
+        Vector3 avgNorm = (lastPoint.normal + newPoint.normal).normalized;
 
-        float sphereRadius = 0.05f;
-        Collider[] hits = Physics.OverlapSphere(midpoint, sphereRadius);
-        bool inEnvironment = false;
+        // snap it onto the mesh
+        var col = environmentMesh.GetComponent<Collider>();
+        Vector3 surface = col.ClosestPoint(rawMid);
 
-        foreach (Collider hit in hits)
+        // optional: raycast back to get the *true* triangle normal
+        RaycastHit hit;
+        Vector3 finalNormal = avgNorm;
+        if (Physics.Raycast(surface + avgNorm * 0.1f, -avgNorm, out hit, 0.2f))
         {
-            if (hit.gameObject == environmentMesh)
-            {
-                inEnvironment = true;
-                break;
-            }
+            surface = hit.point;
+            finalNormal = hit.normal;
         }
 
-        if (inEnvironment)
-        {
-            midpoint += averageNormal * 0.05f;
-        }
+        // 2) *also* extrude the midpoint
+        surface += finalNormal * surfaceOffset;
 
-        AddPoint(new Vertex(midpoint, averageNormal));
+        AddPoint(new Vertex(surface, finalNormal));
     }
 
 
@@ -273,7 +273,7 @@ public class CombinedVine : MonoBehaviour
             if (Vector3.Distance(bestPoint, vinePoints.Last().point) > 0.001f)
             {
                 Vertex newPoint = new Vertex(bestPoint, bestnormal);
-                AddMidpoint(currentPoint, newPoint);
+                //AddMidpoint(currentPoint, newPoint);
                 AddPoint(newPoint);
             }
             else
@@ -303,15 +303,36 @@ public class CombinedVine : MonoBehaviour
                 Vector3 p3 = vinePoints[i + 2].point;  // next next
 
                 // interpolate between p1 and p2 using catmull-rom spline
-                for (float t = 0; t <= 1; t += 0.05f)
+                for (float t = 0; t <= 1; t += 0.075f)
                 {
-                    Vector3 smoothedPoint = CatmullRom(p0, p1, p2, p3, t);
+                    Vector3 smoothedPoint = CentripetalCR(p0, p1, p2, p3, t);
                     
                         smoothedPoints.Add(new Vertex(smoothedPoint, Vector3.up));
                 }
             }
         }
     }
+    Vector3 CentripetalCR(Vector3 p0, Vector3 p1, Vector3 p2, Vector3 p3, float t)
+    {
+        float a = Mathf.Pow((p1 - p0).sqrMagnitude, 0.25f);
+        float b = Mathf.Pow((p2 - p1).sqrMagnitude, 0.25f);
+        float c = Mathf.Pow((p3 - p2).sqrMagnitude, 0.25f);
+        float t0 = 0.0f;
+        float t1 = t0 + a;
+        float t2 = t1 + b;
+        float t3 = t2 + c;
+
+        t = Mathf.Lerp(t1, t2, t);  // remap t into [t1,t2]
+        Vector3 A1 = (t1 - t) / (t1 - t0) * p0 + (t - t0) / (t1 - t0) * p1;
+        Vector3 A2 = (t2 - t) / (t2 - t1) * p1 + (t - t1) / (t2 - t1) * p2;
+        Vector3 A3 = (t3 - t) / (t3 - t2) * p2 + (t - t2) / (t3 - t2) * p3;
+
+        Vector3 B1 = (t2 - t) / (t2 - t0) * A1 + (t - t0) / (t2 - t0) * A2;
+        Vector3 B2 = (t3 - t) / (t3 - t1) * A2 + (t - t1) / (t3 - t1) * A3;
+
+        return (t2 - t) / (t2 - t1) * B1 + (t - t1) / (t2 - t1) * B2;
+    }
+
 
     Vector3 CatmullRom(Vector3 p0, Vector3 p1, Vector3 p2, Vector3 p3, float t)
     {

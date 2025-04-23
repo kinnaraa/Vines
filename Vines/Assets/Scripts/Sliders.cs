@@ -5,11 +5,14 @@ public class Sliders : MonoBehaviour
 {
     public Slider sunSlider;
     public Slider leafSlider;
-    public Slider startRadiusSlider;
-    public Slider endRadiusSlider;
+    public Slider radiusSlider;
 
     public GameObject sun;
     private float sunXAngle = 45.0f;
+
+    public SpawnVine spawnVine;
+    private float originalStart = 0.06f;
+    private float originalEnd = 0.003f;
 
     void Start()
     {        
@@ -25,16 +28,10 @@ public class Sliders : MonoBehaviour
 
         leafSlider.value = 0.4f;
 
-        startRadiusSlider.minValue = 0.001f;
-        startRadiusSlider.maxValue = 0.2f;
-        startRadiusSlider.onValueChanged.AddListener(UpdateStartRadius);
-        startRadiusSlider.value = 0.06f;
-
-        endRadiusSlider.minValue = 0.001f;
-        endRadiusSlider.maxValue = 0.2f;
-        endRadiusSlider.onValueChanged.AddListener(UpdateEndRadius);
-        endRadiusSlider.value = 0.001f;
-
+        radiusSlider.minValue = 0.25f;
+        radiusSlider.maxValue = 2.0f;
+        radiusSlider.onValueChanged.AddListener(UpdateRadius);
+        radiusSlider.value = 1.0f;
     }
 
     void UpdateSunRotation(float value)
@@ -42,9 +39,7 @@ public class Sliders : MonoBehaviour
         sunXAngle = value;
         sun.transform.rotation = Quaternion.Euler(sunXAngle, 0f, 0f);
 
-        var allVines = GameObject.FindGameObjectsWithTag("Vine");
-
-        foreach (var vineObject in allVines)
+        foreach (var vineObject in spawnVine.allVines)
         {
             CombinedVine vine = vineObject.GetComponent<CombinedVine>();
             vine.stopVine = false;
@@ -54,36 +49,19 @@ public class Sliders : MonoBehaviour
     void UpdateLeafProbability(float value)
     {
         leafSlider.value = value;
-        var allVines = GameObject.FindGameObjectsWithTag("Vine");
 
-        foreach (var vineObject in allVines)
-        {
-            CombinedVine vine = vineObject.GetComponent<CombinedVine>();
-            vine.leafProbability = value;
-            vine.RedoLeaves();
-            vine.CleanUpLeaves();
-        }
+        CombinedVine vine = spawnVine.latestVine.GetComponent<CombinedVine>();
+        vine.leafProbability = value;
+        vine.RedoLeaves();
+        vine.CleanUpLeaves();
     }
 
-    void UpdateStartRadius(float value)
+    void UpdateRadius(float value)
     {
-        startRadiusSlider.value = value;
-        foreach (var vineObject in GameObject.FindGameObjectsWithTag("Vine"))
-        {
-            var vine = vineObject.GetComponent<CombinedVine>();
-            vine.startRadius = value;
-            vine.GenerateMesh();
-        }
-    }
-
-    void UpdateEndRadius(float value)
-    {
-        endRadiusSlider.value = value;
-        foreach (var vineObject in GameObject.FindGameObjectsWithTag("Vine"))
-        {
-            var vine = vineObject.GetComponent<CombinedVine>();
-            vine.endRadius = value;
-            vine.GenerateMesh();
-        }
+        radiusSlider.value = value;
+        var vine = spawnVine.latestVine.GetComponent<CombinedVine>();
+        vine.startRadius = originalStart * value;
+        vine.endRadius = originalEnd * value;
+        vine.GenerateMesh();
     }
 }

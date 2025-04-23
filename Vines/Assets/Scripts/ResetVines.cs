@@ -7,19 +7,27 @@ public class ResetVines : MonoBehaviour
     public Slider sunSlider;
     public Slider leafSlider;
     public Slider startRadiusSlider;
-    public Slider endRadiusSlider;
+    public SpawnVine spawnVine;
 
     // Reset scene
     public void ResetScene()
     {
-        var allVines = GameObject.FindGameObjectsWithTag("Vine");
-        foreach( var vine in allVines)
-        {
+        foreach (var vine in spawnVine.allVines)
             Destroy(vine);
+
+        spawnVine.allVines.Clear();
+
+        if (spawnVine != null)
+        {
+            spawnVine.latestVine = null;
         }
-        sunSlider.value = 45.0f;
-        leafSlider.value = 0.4f;
-        startRadiusSlider.value = 0.06f;
-        endRadiusSlider.value = 0.001f;
+        else
+        {
+            return;
+        }
+
+        sunSlider.SetValueWithoutNotify(45f);
+        leafSlider.SetValueWithoutNotify(0.4f);
+        startRadiusSlider.SetValueWithoutNotify(1.0f);
     }
 }
