@@ -14,12 +14,13 @@ public class SpawnVine : MonoBehaviour
     public GameObject canvas;
 
     public Slider leafSlider;
-    public Slider startRadiusSlider;
-    public Slider endRadiusSlider;
+    public Slider growthSpeedSlider;
 
     public GameObject environmentMesh;
     public List<GameObject> allVines;
     public GameObject latestVine = null;
+
+    public float growthSpeed;
 
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
@@ -51,6 +52,8 @@ public class SpawnVine : MonoBehaviour
                     latestVine = vine;
 
                     combinedVine = vine.GetComponent<CombinedVine>();
+
+                    combinedVine.growthSpeed = growthSpeed;
 
                     combinedVine.leafProbability = leafSlider.value;
                     combinedVine.RedoLeaves();

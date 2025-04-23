@@ -1,6 +1,7 @@
 using UnityEngine;
 using System.Collections.Generic;
 using System.Linq;
+using System.Collections;
 
 [RequireComponent(typeof(MeshFilter), typeof(MeshRenderer))]
 public class CombinedVine : MonoBehaviour
@@ -16,7 +17,7 @@ public class CombinedVine : MonoBehaviour
         }
     }
     [Header("Leaf stuff")]
-    public float leafProbability = 0.4f;
+    public float leafProbability = 0.6f;
     public GameObject leafPrefab;
     public bool generateLeaves = true;
     private List<GameObject> spawnedLeaves = new List<GameObject>();
@@ -43,7 +44,7 @@ public class CombinedVine : MonoBehaviour
     [Header("Light stuff")]
     public Transform lightTransform;
 
-    private float growthSpeed = 0.075f;
+    public float growthSpeed = 0.01f;
     private float growthTimer = 0f;
 
     List<Vertex> smoothedPoints = new List<Vertex>();
@@ -58,7 +59,7 @@ public class CombinedVine : MonoBehaviour
     List<Vector2> uvs;
     List<int> tris;
     float surfaceOffset = 0.07f;
-
+    private int revealedSmoothCount = 0;
 
     void Start()
     {
@@ -109,15 +110,38 @@ public class CombinedVine : MonoBehaviour
         if (vinePoints.Count > 0 && !stopVine)
         {
             growthTimer += Time.deltaTime;
-
             if (growthTimer >= growthSpeed)
             {
-                Vertex currentPoint = vinePoints.Last();
-                FindNextPoint(currentPoint);
-                SmoothVine();
                 growthTimer = 0f;
+
+                if (revealedSmoothCount < smoothedPoints.Count)
+                {
+                    revealedSmoothCount++;
+                }
+                else
+                {
+                    FindNextPoint(vinePoints.Last());
+                }
             }
+
             GenerateMesh();
+        }
+    }
+
+    void SmoothOverTime()
+    {
+        int c = vinePoints.Count;
+        if (c < 4) return;
+
+        var p0 = vinePoints[c - 4].point;
+        var p1 = vinePoints[c - 3].point;
+        var p2 = vinePoints[c - 2].point;
+        var p3 = vinePoints[c - 1].point;
+
+        for (float t = 0; t <= 1f; t += 0.075f)
+        {
+            var pt = CentripetalCR(p0, p1, p2, p3, t);
+            smoothedPoints.Add(new Vertex(pt, Vector3.up));
         }
     }
 
@@ -157,10 +181,27 @@ public class CombinedVine : MonoBehaviour
         newPoint.point += newPoint.normal.normalized * surfaceOffset;
         vinePoints.Add(newPoint);
 
-        if(vinePoints.Count > 4)
+        if (vinePoints.Count == 4)
         {
-            SpawnLeavesAtPoint(newPoint);
+            smoothedPoints.Clear();
+            SmoothOverTime();
+            revealedSmoothCount = 0;
         }
+        else if (vinePoints.Count > 4)
+        {
+            SmoothOverTime();
+        }
+
+        if (vinePoints.Count > 4)
+        {
+            StartCoroutine(spawnLeaf(newPoint));
+        }
+    }
+
+    private IEnumerator spawnLeaf(Vertex newPoint)
+    {
+        yield return new WaitForSeconds(1);
+        SpawnLeavesAtPoint(newPoint);
     }
 
     public void RedoLeaves()
@@ -183,7 +224,6 @@ public class CombinedVine : MonoBehaviour
 
         for (int i = 0; i < worldVertices.Count; i++)
         {
-            // get nearby points only
             if (Vector3.Distance(worldVertices[i], currentPoint) <= radius)
             {
                 nearbyVertices.Add(new Vertex(worldVertices[i], worldNormals[i]));
@@ -192,31 +232,6 @@ public class CombinedVine : MonoBehaviour
 
         return nearbyVertices;
     }
-
-    void AddMidpoint(Vertex lastPoint, Vertex newPoint)
-    {
-        Vector3 rawMid = (lastPoint.point + newPoint.point) * 0.5f;
-        Vector3 avgNorm = (lastPoint.normal + newPoint.normal).normalized;
-
-        // snap it onto the mesh
-        var col = environmentMesh.GetComponent<Collider>();
-        Vector3 surface = col.ClosestPoint(rawMid);
-
-        // optional: raycast back to get the *true* triangle normal
-        RaycastHit hit;
-        Vector3 finalNormal = avgNorm;
-        if (Physics.Raycast(surface + avgNorm * 0.1f, -avgNorm, out hit, 0.2f))
-        {
-            surface = hit.point;
-            finalNormal = hit.normal;
-        }
-
-        // 2) *also* extrude the midpoint
-        surface += finalNormal * surfaceOffset;
-
-        AddPoint(new Vertex(surface, finalNormal));
-    }
-
 
 
     void FindNextPoint(Vertex currentPoint)
@@ -273,7 +288,6 @@ public class CombinedVine : MonoBehaviour
             if (Vector3.Distance(bestPoint, vinePoints.Last().point) > 0.001f)
             {
                 Vertex newPoint = new Vertex(bestPoint, bestnormal);
-                //AddMidpoint(currentPoint, newPoint);
                 AddPoint(newPoint);
             }
             else
@@ -287,31 +301,7 @@ public class CombinedVine : MonoBehaviour
         }
     }
 
-    void SmoothVine()
-    {
-        if (vinePoints.Count() >= 6)
-        {
-            // new list for smoothed points
-            smoothedPoints = new List<Vertex>();
 
-            // catmull-rom for interpolating between vinePoints
-            for (int i = 1; i < vinePoints.Count - 2; i++)  // start from second point and stop before the last two points
-            {
-                Vector3 p0 = vinePoints[i - 1].point;  // prev
-                Vector3 p1 = vinePoints[i].point;      // current
-                Vector3 p2 = vinePoints[i + 1].point;  // next
-                Vector3 p3 = vinePoints[i + 2].point;  // next next
-
-                // interpolate between p1 and p2 using catmull-rom spline
-                for (float t = 0; t <= 1; t += 0.075f)
-                {
-                    Vector3 smoothedPoint = CentripetalCR(p0, p1, p2, p3, t);
-                    
-                        smoothedPoints.Add(new Vertex(smoothedPoint, Vector3.up));
-                }
-            }
-        }
-    }
     Vector3 CentripetalCR(Vector3 p0, Vector3 p1, Vector3 p2, Vector3 p3, float t)
     {
         float a = Mathf.Pow((p1 - p0).sqrMagnitude, 0.25f);
@@ -334,16 +324,9 @@ public class CombinedVine : MonoBehaviour
     }
 
 
-    Vector3 CatmullRom(Vector3 p0, Vector3 p1, Vector3 p2, Vector3 p3, float t)
-    {
-        // catmull-rom spline interpolation formula
-        return 0.5f * ((2f * p1) + (-p0 + p2) * t + (2f * p0 - 5f * p1 + 4f * p2 - p3) * t * t + (-p0 + 3f * p1 - 3f * p2 + p3) * t * t * t);
-    }
-
-
     public void GenerateMesh()
     {
-        int N = smoothedPoints.Count;
+        int N = Mathf.Min(revealedSmoothCount, smoothedPoints.Count);
         if (N < 2) return;
 
         if (localPts == null || localPts.Length != N)

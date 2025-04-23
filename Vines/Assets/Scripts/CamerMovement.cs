@@ -7,6 +7,7 @@ public class CameraMovement : MonoBehaviour
 
     private float yaw;
     private float pitch;
+    private float zoomSensitivity = 400;
 
     void Start()
     {
@@ -30,6 +31,13 @@ public class CameraMovement : MonoBehaviour
         float ascendDescend = 0f;
         if (Input.GetKey(KeyCode.E)) ascendDescend = 1f;
         if (Input.GetKey(KeyCode.Q)) ascendDescend = -1f;
+
+        float scroll = Input.GetAxis("Mouse ScrollWheel");
+        if (scroll != 0f)
+        {
+            transform.position += transform.forward * scroll * zoomSensitivity * Time.deltaTime;
+        }
+
 
         Vector3 direction = (transform.forward * vertical) + (transform.right * horizontal) + (Vector3.up * ascendDescend);
         transform.position += direction * movementSpeed * Time.deltaTime;

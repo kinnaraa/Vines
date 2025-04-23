@@ -99,7 +99,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 68b1082ea639cbf479a5d6d5b01abac3, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  leafProbability: 0.4
+  leafProbability: 0.6
   leafPrefab: {fileID: 582608985691338941, guid: f334a7d56e4024047a7161b07e2e6081,
     type: 3}
   generateLeaves: 1

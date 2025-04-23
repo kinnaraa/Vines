@@ -6,6 +6,7 @@ public class Sliders : MonoBehaviour
     public Slider sunSlider;
     public Slider leafSlider;
     public Slider radiusSlider;
+    public Slider growthSpeedSlider;
 
     public GameObject sun;
     private float sunXAngle = 45.0f;
@@ -26,12 +27,18 @@ public class Sliders : MonoBehaviour
 
         sunSlider.value = sun.transform.eulerAngles.x;
 
-        leafSlider.value = 0.4f;
+        leafSlider.value = 0.6f;
 
         radiusSlider.minValue = 0.4f;
         radiusSlider.maxValue = 2.0f;
         radiusSlider.onValueChanged.AddListener(UpdateRadius);
         radiusSlider.value = 1.0f;
+
+        growthSpeedSlider.minValue = 0.00001f;
+        growthSpeedSlider.maxValue = 0.04f;
+        growthSpeedSlider.value = 0.01f;
+        growthSpeedSlider.onValueChanged.AddListener(UpdateGrowthSpeed);
+
     }
 
     void UpdateSunRotation(float value)
@@ -63,5 +70,11 @@ public class Sliders : MonoBehaviour
         vine.startRadius = originalStart * value;
         vine.endRadius = originalEnd * value;
         vine.GenerateMesh();
+    }
+
+    void UpdateGrowthSpeed(float value)
+    {
+        growthSpeedSlider.value = value;
+        spawnVine.growthSpeed = growthSpeedSlider.value;
     }
 }
