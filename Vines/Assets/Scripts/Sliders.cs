@@ -28,7 +28,7 @@ public class Sliders : MonoBehaviour
 
         leafSlider.value = 0.4f;
 
-        radiusSlider.minValue = 0.25f;
+        radiusSlider.minValue = 0.4f;
         radiusSlider.maxValue = 2.0f;
         radiusSlider.onValueChanged.AddListener(UpdateRadius);
         radiusSlider.value = 1.0f;
