@@ -61,6 +61,8 @@ public class CombinedVine : MonoBehaviour
     float surfaceOffset = 0.07f;
     private int revealedSmoothCount = 0;
 
+    private List<GameObject> leaves = new List<GameObject>();
+
     void Start()
     {
         mf = GetComponent<MeshFilter>();
@@ -103,6 +105,8 @@ public class CombinedVine : MonoBehaviour
             }
             mr.material = mat;
         }
+
+
     }
 
     void Update()
@@ -123,7 +127,6 @@ public class CombinedVine : MonoBehaviour
                     FindNextPoint(vinePoints.Last());
                 }
             }
-
             GenerateMesh();
         }
     }
@@ -312,7 +315,7 @@ public class CombinedVine : MonoBehaviour
         float t2 = t1 + b;
         float t3 = t2 + c;
 
-        t = Mathf.Lerp(t1, t2, t);  // remap t into [t1,t2]
+        t = Mathf.Lerp(t1, t2, t);
         Vector3 A1 = (t1 - t) / (t1 - t0) * p0 + (t - t0) / (t1 - t0) * p1;
         Vector3 A2 = (t2 - t) / (t2 - t1) * p1 + (t - t1) / (t2 - t1) * p2;
         Vector3 A3 = (t3 - t) / (t3 - t2) * p2 + (t - t2) / (t3 - t2) * p3;

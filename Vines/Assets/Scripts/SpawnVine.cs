@@ -15,7 +15,7 @@ public class SpawnVine : MonoBehaviour
 
     public Slider leafSlider;
     public Slider growthSpeedSlider;
-
+            
     public GameObject environmentMesh;
     public List<GameObject> allVines;
     public GameObject latestVine = null;
@@ -41,11 +41,6 @@ public class SpawnVine : MonoBehaviour
             Ray ray = cam.ScreenPointToRay(Input.mousePosition);
             if(Physics.Raycast(ray, out RaycastHit hit, 100.0f))
             {
-                if (hit.collider.gameObject.tag == "blocker")
-                {
-                    return;
-                }
-
                 if (hit.collider.gameObject == environmentMesh)
                 {
                     GameObject vine = Instantiate(vinePrefab, hit.point, Quaternion.identity);
