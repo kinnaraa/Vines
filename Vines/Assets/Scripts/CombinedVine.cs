@@ -225,14 +225,16 @@ public class CombinedVine : MonoBehaviour
 
         if (vinePoints.Count > 4)
         {
-            StartCoroutine(spawnLeaf(newPoint));
+            StartCoroutine(spawnLeaf(newPoint, revealedSmoothCount + 40));
         }
     }
 
-    private IEnumerator spawnLeaf(Vertex newPoint)
+
+    private IEnumerator spawnLeaf(Vertex point, int targetRevealIndex)
     {
-        yield return new WaitForSeconds(1);
-        SpawnLeavesAtPoint(newPoint);
+        yield return new WaitUntil(() => revealedSmoothCount >= targetRevealIndex);
+
+        SpawnLeavesAtPoint(point);
     }
 
     public void RedoLeaves()
