@@ -7,6 +7,8 @@ public class ResetVines : MonoBehaviour
     public Slider sunSlider;
     public Slider leafSlider;
     public Slider startRadiusSlider;
+    public Slider growthSpeedSlider;
+
     public SpawnVine spawnVine;
 
     // Reset scene

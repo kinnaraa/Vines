@@ -37,12 +37,14 @@ public class Sliders : MonoBehaviour
         growthSpeedSlider.minValue = -2.5f;
         growthSpeedSlider.maxValue = -1.4f;
         growthSpeedSlider.wholeNumbers = false;
-        growthSpeedSlider.value = spawnVine.growthSpeed;
+        growthSpeedSlider.value = -2f;
 
         growthSpeedSlider.onValueChanged.AddListener(exp =>
         {
             spawnVine.growthSpeed = Mathf.Pow(10f, exp);
         });
+
+        growthSpeedSlider.onValueChanged.AddListener(UpdateGrowthSpeed);
 
         Application.targetFrameRate = 100;
     }
@@ -81,6 +83,5 @@ public class Sliders : MonoBehaviour
     void UpdateGrowthSpeed(float value)
     {
         growthSpeedSlider.value = value;
-        spawnVine.growthSpeed = growthSpeedSlider.value;
     }
 }

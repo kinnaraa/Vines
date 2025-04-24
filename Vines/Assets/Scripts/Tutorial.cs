@@ -4,7 +4,7 @@ using TMPro;
 
 public class Tutorial : MonoBehaviour
 {
-    public GameObject tutorial;
+    public GameObject tutorialArea;
     public GameObject tutorialButton;
     public TMP_Text buttonText;
     bool tutorialOpen = false;
@@ -24,7 +24,7 @@ public class Tutorial : MonoBehaviour
     public void OpenTutorial()
     {
         tutorialOpen = !tutorialOpen;
-        tutorial.SetActive(tutorialOpen);
+        tutorialArea.SetActive(tutorialOpen);
         if(tutorialOpen )
         {
             buttonText.text = "Close";

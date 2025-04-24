@@ -22,7 +22,6 @@ public class CombinedVine : MonoBehaviour
     public bool generateLeaves = true;
     private List<GameObject> spawnedLeaves = new List<GameObject>();
 
-
     public List<Vertex> vinePoints = new List<Vertex>();
     public GameObject environmentMesh;
     public MeshFilter environmentMeshFilter;

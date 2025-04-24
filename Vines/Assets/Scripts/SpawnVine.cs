@@ -15,6 +15,7 @@ public class SpawnVine : MonoBehaviour
     public GameObject canvas;
 
     public Slider leafSlider;
+    public Slider radiusSlider;
     public Slider growthSpeedSlider;
             
     public GameObject environmentMesh;
@@ -42,6 +43,8 @@ public class SpawnVine : MonoBehaviour
         cam = gameObject.GetComponent<Camera>();
         canvas.SetActive(false);
         allVines = new List<GameObject>();
+
+        growthSpeed = 0.008f;
     }
 
     // Update is called once per frame
@@ -66,6 +69,9 @@ public class SpawnVine : MonoBehaviour
 
                     combinedVine.leafProbability = leafSlider.value;
                     combinedVine.RedoLeaves();
+
+                    combinedVine.startRadius = radiusSlider.value * 0.06f;
+                    combinedVine.endRadius = radiusSlider.value * 0.003f;
 
                     allVines.Add(vine);
 
