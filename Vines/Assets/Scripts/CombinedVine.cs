@@ -44,7 +44,7 @@ public class CombinedVine : MonoBehaviour
     [Header("Light stuff")]
     public Transform lightTransform;
 
-    public float growthSpeed = 0.01f;
+    public float growthSpeed = 0.008f;
     private float growthTimer = 0f;
 
     List<Vertex> smoothedPoints = new List<Vertex>();
@@ -112,7 +112,6 @@ public class CombinedVine : MonoBehaviour
 
                 matToUse = new Material(s);
 
-                // assign texture or a fallback color
                 if (vineTexture != null)
                     matToUse.mainTexture = vineTexture;
                 else
@@ -124,24 +123,38 @@ public class CombinedVine : MonoBehaviour
         }
     }
 
-    void Update()
+    void Awake()
     {
-        if (vinePoints.Count > 0 && !stopVine)
-        {
-            growthTimer += Time.deltaTime;
-            if (growthTimer >= growthSpeed)
-            {
-                growthTimer = 0f;
+        Time.fixedDeltaTime = 1f / 60f;
+    }
 
+    void FixedUpdate()
+    {
+        if (vinePoints.Count == 0 || stopVine)
+            return;
+
+        growthTimer += Time.deltaTime;
+
+        if (growthSpeed <= 0f)
+            return;
+
+        int wantedSteps = Mathf.FloorToInt(growthTimer / growthSpeed);
+
+        int maxSteps = (smoothedPoints.Count - revealedSmoothCount) + 1;
+        int steps = Mathf.Clamp(wantedSteps, 0, maxSteps);
+
+        if (steps > 0)
+        {
+            growthTimer -= steps * growthSpeed;
+
+            for (int i = 0; i < steps; i++)
+            {
                 if (revealedSmoothCount < smoothedPoints.Count)
-                {
                     revealedSmoothCount++;
-                }
                 else
-                {
                     FindNextPoint(vinePoints.Last());
-                }
             }
+
             GenerateMesh();
         }
     }

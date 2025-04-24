@@ -113,7 +113,7 @@ MonoBehaviour:
   uvTileFactor: 10
   vineTexture: {fileID: 2800000, guid: 3c54e4c6bd6353c438e2e337546e3664, type: 3}
   lightTransform: {fileID: 0}
-  growthSpeed: 0.01
+  growthSpeed: 0.00001
   leaves:
   - {fileID: 582608985691338941, guid: f334a7d56e4024047a7161b07e2e6081, type: 3}
   - {fileID: 2801810735448073209, guid: 1dc8a365229b7f94d949c9d1058d3c72, type: 3}

@@ -34,11 +34,17 @@ public class Sliders : MonoBehaviour
         radiusSlider.onValueChanged.AddListener(UpdateRadius);
         radiusSlider.value = 1.0f;
 
-        growthSpeedSlider.minValue = 0.00001f;
-        growthSpeedSlider.maxValue = 0.04f;
-        growthSpeedSlider.value = 0.01f;
-        growthSpeedSlider.onValueChanged.AddListener(UpdateGrowthSpeed);
+        growthSpeedSlider.minValue = -2.5f;
+        growthSpeedSlider.maxValue = -1.4f;
+        growthSpeedSlider.wholeNumbers = false;
+        growthSpeedSlider.value = spawnVine.growthSpeed;
 
+        growthSpeedSlider.onValueChanged.AddListener(exp =>
+        {
+            spawnVine.growthSpeed = Mathf.Pow(10f, exp);
+        });
+
+        Application.targetFrameRate = 100;
     }
 
     void UpdateSunRotation(float value)

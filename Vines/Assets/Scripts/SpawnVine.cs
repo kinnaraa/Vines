@@ -4,6 +4,7 @@ using UnityEngine.UI;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine.EventSystems;
+using System.Security.Cryptography;
 
 public class SpawnVine : MonoBehaviour
 {
@@ -22,9 +23,22 @@ public class SpawnVine : MonoBehaviour
 
     public float growthSpeed;
 
+
+    void Awake()
+    {
+        #if !UNITY_EDITOR
+            QualitySettings.vSyncCount     = 1;    // turn on V-Sync
+            Application.targetFrameRate    = 60;   // lock to 60 fps
+        #endif
+    }
+
+
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
     {
+        Application.targetFrameRate = 60;
+        QualitySettings.vSyncCount = 1 / 60;
+
         cam = gameObject.GetComponent<Camera>();
         canvas.SetActive(false);
         allVines = new List<GameObject>();
