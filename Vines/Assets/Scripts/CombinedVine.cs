@@ -61,7 +61,9 @@ public class CombinedVine : MonoBehaviour
     float surfaceOffset = 0.07f;
     private int revealedSmoothCount = 0;
 
-    private List<GameObject> leaves = new List<GameObject>();
+    public List<GameObject> leaves = new List<GameObject>(8);
+    public Material vineMaterial;
+    public Shader vineShader;
 
     void Start()
     {
@@ -94,19 +96,32 @@ public class CombinedVine : MonoBehaviour
 
         if (mr.sharedMaterial == null)
         {
-            Material mat = new Material(Shader.Find("Unlit/Texture"));
-            if (vineTexture != null)
+            Material matToUse = null;
+
+            if (vineMaterial != null)
             {
-                mat.mainTexture = vineTexture;
+                matToUse = new Material(vineMaterial);
             }
             else
             {
-                mat.color = new Color(0.3f, 0.15f, 0.05f);
+                Shader s = vineShader;
+                if (s == null)
+                {
+                    s = Shader.Find("Universal Render Pipeline/Unlit");
+                }
+
+                matToUse = new Material(s);
+
+                // assign texture or a fallback color
+                if (vineTexture != null)
+                    matToUse.mainTexture = vineTexture;
+                else
+                    matToUse.color = new Color(0.3f, 0.15f, 0.05f);
             }
-            mr.material = mat;
+
+            mr.material = matToUse;
+            mr.material.mainTexture = vineTexture;
         }
-
-
     }
 
     void Update()
@@ -445,7 +460,7 @@ public class CombinedVine : MonoBehaviour
     void SpawnLeafAtPosition(Vector3 point, Vector3 normal)
     {
         // get leaf spawn position using the normal and some offset
-        float radius = Mathf.Lerp(startRadius, endRadius, 0.5f); 
+        float radius = Mathf.Lerp(startRadius, endRadius, 0.9f);
         Vector3 leafOffset = normal * radius;
         Vector3 randomDeviation = Random.insideUnitSphere * 0.02f;
         Vector3 leafPosition = point + leafOffset + randomDeviation;
@@ -471,7 +486,10 @@ public class CombinedVine : MonoBehaviour
         Quaternion leafRotation = Quaternion.LookRotation(leafForward, adjustedUp);
 
         Vector3 centerLocal = transform.InverseTransformPoint(leafPosition);
-        GameObject leaf = Instantiate(leafPrefab, transform);
+
+        GameObject leafChoice = leaves[Random.Range(0, 8)];
+
+        GameObject leaf = Instantiate(leafChoice, transform);
         leaf.transform.localPosition = centerLocal;
         leaf.transform.localRotation = leafRotation;
 
